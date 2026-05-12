@@ -78,6 +78,38 @@ function applyManagedFields(
   return nextContent;
 }
 
+/**
+ * Recursively removes null, empty arrays, and empty strings from a JSONC document.
+ *
+ * Each call to applyModify re-parses the current text and locates the path by name,
+ * so sequential edits do not cause path drift.
+ */
+function cleanEmptyValues(
+  content: string,
+  data: Record<string, unknown>,
+): string {
+  let result = content;
+
+  function scan(obj: Record<string, unknown>, path: (string | number)[]): void {
+    for (const [key, value] of Object.entries(obj)) {
+      const currentPath = [...path, key];
+
+      if (value === null) {
+        result = applyModify(result, currentPath, undefined);
+      } else if (Array.isArray(value) && value.length === 0) {
+        result = applyModify(result, currentPath, undefined);
+      } else if (value === "") {
+        result = applyModify(result, currentPath, undefined);
+      } else if (value && typeof value === "object" && !Array.isArray(value)) {
+        scan(value as Record<string, unknown>, currentPath);
+      }
+    }
+  }
+
+  scan(data, []);
+  return result;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object") {
     return {};
@@ -185,6 +217,9 @@ export async function writeProfileConfig(
 
   const existingData = asRecord(parse(existingContent));
   let nextContent = existingContent;
+
+  // Clean existing empty values before applying updates
+  nextContent = cleanEmptyValues(nextContent, existingData);
 
   const agentPayload = asRecord(payload.agents);
   for (const [agentId, value] of Object.entries(agentPayload)) {
