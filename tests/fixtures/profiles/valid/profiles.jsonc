@@ -1,0 +1,11 @@
+{
+  // fixture manifest for valid parsing
+  "profiles": [
+    {
+      "id": "fixture-default",
+      "label": "Fixture Default",
+      "opencode_path": "./profiles/default/opencode.jsonc",
+      "oh_my_opencode_path": "./profiles/default/oh-my-opencode.jsonc"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://example.com/opencode.schema.json",
+  "agents": {
+    "planner": {
+      "model": "gpt-5",
+      "variant": "medium",
+      "temperature": 0.2,
+      "prompt_append": "Always explain trade-offs."
+    },
+    "coder": {
+      "model": "claude-3-opus",
+      "variant": "high",
+      "temperature": 0.1
+    }
+  },
+  "categories": {
+    "backend": {
+      "model": "gpt-4",
+      "variant": "medium",
+      "temperature": 0.3,
+      "description": "Backend development tasks",
+      "prompt_append": "Focus on performance.",
+      "fallback_models": ["gpt-3.5-turbo"]
+    }
+  },
+  "misc": {
+    "tmux": {
+      "enabled": true
+    },
+    "git_master": {
+      "enabled": false
+    }
+  },
+  "custom_field": "should be in readonlyTail"
+}

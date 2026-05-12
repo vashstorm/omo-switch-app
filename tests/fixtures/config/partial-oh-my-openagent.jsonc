@@ -1,0 +1,21 @@
+{
+  "$schema": "https://example.com/oh-my-opencode.schema.json",
+  "agents": {
+    "planner": {
+      "model": "gpt-5-mini",
+      "variant": "low",
+      "temperature": 0.1,
+      "prompt_append": "Prefer concise outputs."
+    }
+  },
+  "categories": {
+    "backend": {
+      "model": "gpt-4-turbo"
+    }
+  },
+  "misc": {
+    "tmux": {
+      "enabled": false
+    }
+  }
+}

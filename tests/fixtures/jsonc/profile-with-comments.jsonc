@@ -1,0 +1,18 @@
+{
+  // Profile configuration
+  "agents": {
+    // Build agent
+    "build": {
+      "model": "old-model",
+      "variant": "low"
+    },
+    "oracle": {
+      "model": "oracle-model"
+    }
+  },
+  "categories": {
+    "quick": {
+      "model": "fast-model"
+    }
+  }
+}

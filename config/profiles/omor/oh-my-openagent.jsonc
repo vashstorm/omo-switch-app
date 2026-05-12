@@ -1,0 +1,141 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "sisyphus": { // [总指挥]
+      // "model": "github-copilot/claude-sonnet-4.6",
+      // "model": "cubence-claude/claude-sonnet-4-6",
+      // "model": "aigo-claude/claude-sonnet-4-6",
+      // "variant": "medium",
+      "model": "aliyun-cp/kimi-k2.5",
+      // "model": "openai/gpt-5.4",
+      // "variant": "medium",
+      "temperature": 0.1,
+      // "maxTokens": 64000,
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",
+      // "model": "alibaba-coding-plan-cn/glm-5",
+      // "model": "cube-clause/claude-sonnet-4-6",
+      // "model": "aigo-claude/claude-sonnet-4-6",
+      "ultrawork": {
+        "model": "aliyun-cp/kimi-k2.5",
+        "variant": "medium"
+      }
+    },
+    "sisyphus-junior": {
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",
+      "temperature": 0.1
+    },
+    "prometheus": { // [战略规划师]深度需求分析",
+      // "model": "alibaba-coding-plan-cn/kimi-k2.5",
+      "model": "openai/gpt-5.4",
+      "variant": "high",
+      // "model": "cubence-gpt/gpt-5.4",
+      // "model": "cube-clause/claude-sonnet-4-6",
+      // "model": "pack-claude/claude-sonnet-4-6",
+      "fallback_models": [
+        "alibaba-coding-plan-cn/kimi-k2.5"
+      ],
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",
+      "temperature": 0.2
+    },
+    "hephaestus": { // [深度工作者]以希腊锻造之神命名。有条不紊、彻底、执着。在写任何代码前启动 2-5 个并行 explore agent。专为深度架构推理、复杂调试和跨领域综合而设计。
+      "model": "openai/gpt-5.3-codex",
+      // "model": "cubence-gpt/gpt-5.3-codex",
+      "description": "深度工作者，以希腊锻造之神命名。有条不紊、彻底、执着。在写任何代码前启动 2-5 个并行 explore agent。专为深度架构推理、复杂调试和跨领域综合而设计。",
+      "prompt_append": "你是 Hephaestus（赫菲斯托斯）——希腊神话中的锻造之神，深度代码工匠。你的特质是有条不紊、彻底、执着。",
+      "temperature": 0.2
+    },
+    "oracle": { // [架构师]疑难杂症诊断
+      "model": "openai/gpt-5.4",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",
+      "temperature": 0.1
+    },
+    "librarian": {
+      "model": "alibaba-coding-plan-cn/glm-5",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",
+      "temperature": 0
+    },
+    "explore": {
+      "model": "alibaba-coding-plan-cn/qwen3.5-plus",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。"
+    },
+    "multimodal-looker": {
+      "model": "aliyun-cp/kimi-k2.5"
+    },
+    "metis": { // [计划顾问]
+      "model": "aliyun-cp/kimi-k2.5",
+      // "model": "openai/gpt-5.4",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。"
+    },
+    "momus": { // [挑刺专家]
+      "model": "openai/gpt-5.4",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。"
+    },
+    "atlas": { // [执行编排器]任务分发与状态管理
+      "model": "aliyun-cp/kimi-k2.5",
+      // "model": "github-copilot/claude-sonnet-4.6",
+      // "model": "aigo-claude/claude-sonnet-4-6",
+      "prompt_append": "你必须用流利的中文回答所有问题, 除了代码。"
+    }
+  },
+  "categories": {
+    "visual-engineering": {
+      "model": "aigo-gemini/gemini-3.1-pro-preview",
+      "description": "前端、UI/UX、视觉工程、样式、动画、设计相关任务,注重视觉效果和用户体验",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",
+      "variant": "high",
+      "temperature": 0.8
+    },
+    "ultrabrain": {
+      "model": "openai/gpt-5.3-codex",
+      "description": "超高难度逻辑、复杂架构决策、需要深度推理和系统性思考的任务",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。"
+    },
+    "deep": {
+      "model": "alibaba-coding-plan-cn/glm-5",
+      "description": "需要自主研究、长时间执行、复杂问题求解的深度任务",
+      "prompt_append": "你是深度思考执行者。处理复杂逻辑时，先画出流程/架构图（用文字描述），然后分步实现。每步完成后自验证正确性。允许更长的思考链，但必须结构清晰。"
+    },
+    "artistry": {
+      "model": "aigo-gemini/gemini-3.1-pro-preview",
+      "description": "创意、艺术性、创新方案生成，需要新颖想法和突破常规的任务",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",
+      "temperature": 0.8
+    },
+    "quick": {
+      "model": "alibaba-coding-plan-cn/qwen3.5-plus",
+      "description": "快速小任务：修复 typo、单文件简单修改、轻微调整,不需要深度思考",
+      "prompt_append": "你是快速执行专家。只做最小必要变更，速度优先，保持简单清晰。完成后立即验证。"
+    },
+    "unspecified-high": {
+      "model": "openai/gpt-5.3-codex",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。"
+    },
+    "unspecified-low": {
+      "model": "alibaba-coding-plan-cn/glm-5",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。"
+    },
+    "review": {
+      "model": "aliyun-cp/kimi-k2.5",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",
+      "temperature": 0.3,
+      "description": "Code review, security, refactoring"
+    },
+    "writing": {
+      "model": "alibaba-coding-plan-cn/glm-5",
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。"
+    }
+  },
+  "tmux": {
+    "enabled": true,
+    "layout": "main-vertical", // Recommended: main-vertical or main-horizontal, tiled
+    "main_pane_size": 60, // Main pane width percentage
+    "agent_pane_min_width": 30, // Agent pane minimum width percentage
+    "main_pane_min_width": 100, // Minimum main pane width
+    "isolation": "window" // Isolation mode: inline | window | session
+  },
+  "git_master": {
+    "commit_footer": true,
+    "include_co_authored_by": true,
+    "git_env_prefix": "GIT_MASTER=1"
+  }
+}

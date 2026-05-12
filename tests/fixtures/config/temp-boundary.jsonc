@@ -1,0 +1,13 @@
+{
+  "$schema": "https://example.com/oh-my-opencode.schema.json",
+  "agents": {
+    "planner": {
+      "model": "gpt-5",
+      "temperature": 0
+    },
+    "coder": {
+      "model": "claude-3",
+      "temperature": 2
+    }
+  }
+}

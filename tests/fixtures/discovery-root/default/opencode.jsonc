@@ -1,0 +1,17 @@
+{
+  "agents": {
+    "planner": {
+      "model": "fixture-model-a"
+    }
+  },
+  "categories": {},
+  "misc": {},
+  "provider": {
+    "test-provider": {
+      "models": {
+        "fixture-model-a": {},
+        "fixture-model-b": {}
+      }
+    }
+  }
+}

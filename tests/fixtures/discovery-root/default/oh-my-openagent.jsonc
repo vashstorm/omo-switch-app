@@ -1,0 +1,8 @@
+{
+  "agents": {
+    "planner": {
+      "model": "fixture-model-a",
+      "variant": "low"
+    }
+  }
+}

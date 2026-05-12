@@ -1,0 +1,26 @@
+{
+  "$schema": "https://example.com/oh-my-opencode.schema.json",
+  "agents": {
+    "planner": {
+      "model": "gpt-5",
+      "custom_agent_field": "unmanaged value",
+      "another_unmanaged": 123
+    }
+  },
+  "categories": {
+    "backend": {
+      "model": "gpt-4",
+      "custom_category_field": true
+    }
+  },
+  "misc": {
+    "tmux": {
+      "enabled": true,
+      "custom_tmux_setting": "value"
+    },
+    "unknown_section": {
+      "some_field": "value"
+    }
+  },
+  "top_level_unmanaged": "should be in readonlyTail"
+}

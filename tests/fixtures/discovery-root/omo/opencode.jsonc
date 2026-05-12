@@ -1,0 +1,21 @@
+{
+  "agents": {
+    "builder": {
+      "model": "fixture-model-c"
+    }
+  },
+  "categories": {
+    "deep": {
+      "model": "fixture-model-c"
+    }
+  },
+  "misc": {},
+  "provider": {
+    "another-provider": {
+      "models": {
+        "fixture-model-c": {},
+        "fixture-model-d": {}
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  // Config paths for profiles
+  "config_path": [""],
+  // Logging configuration
+  "log_path": "",
+  "providers": {},
+  "ui_preferences": {
+    // Enable/disable sync replace
+    "sync_replace_enabled": false
+  },
+  "default_profile": null,
+  "disabled_providers": {}
+}

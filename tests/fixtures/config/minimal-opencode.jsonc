@@ -1,0 +1,8 @@
+{
+  "$schema": "https://example.com/opencode.schema.json",
+  "agents": {
+    "planner": {
+      "model": "gpt-5"
+    }
+  }
+}

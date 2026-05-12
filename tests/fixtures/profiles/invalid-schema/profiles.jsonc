@@ -1,0 +1,9 @@
+{
+  "profiles": [
+    {
+      "id": "bad",
+      "opencode_path": "./profiles/default/opencode.jsonc",
+      "oh_my_opencode_path": "./profiles/default/oh-my-opencode.jsonc"
+    }
+  ]
+}

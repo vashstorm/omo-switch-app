@@ -1,0 +1,21 @@
+{
+  "$schema": "https://example.com/oh-my-opencode.schema.json",
+  "agents": {
+    "planner": {
+      "model": "gpt-5"
+    }
+  },
+  "misc": {
+    "tmux": {
+      "enabled": true
+    },
+    "primitive_string": "hello world",
+    "primitive_number": 42,
+    "primitive_boolean": true,
+    "primitive_null": null,
+    "array_value": ["item1", "item2"],
+    "object_section": {
+      "nested_field": "nested value"
+    }
+  }
+}
