@@ -67,7 +67,7 @@ function applyManagedFields(
     const fieldValue = source[field];
     const path = [...rootPath, field];
 
-    if (shouldOmitField(fieldValue, definition)) {
+    if (shouldOmitField(fieldValue, definition, field)) {
       nextContent = applyModify(nextContent, path, undefined);
       continue;
     }

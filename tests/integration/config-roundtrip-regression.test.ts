@@ -345,5 +345,95 @@ describe("config roundtrip regression", () => {
       expect(savedContent).toContain('"model": "gpt-5"');
       expect(savedContent).toContain('"variant": "high"');
     });
+
+    it("preserves comments and omits blank fields in roundtrip", async () => {
+      const profileDir = path.join(tempDir, "default");
+      await fs.mkdir(profileDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(profileDir, "opencode.jsonc"),
+        JSON.stringify({ agents: {}, categories: {}, misc: {} }, null, 2),
+        "utf-8",
+      );
+
+      const ohMyPath = path.join(profileDir, "oh-my-openagent.jsonc");
+      const originalContent = `{
+  // Top-level comment for agents
+  "agents": {
+    /* Planner agent block comment */
+    "planner": {
+      "model": "gpt-4",
+      "variant": "medium"
+    },
+    // Another agent comment
+    "builder": {
+      "model": "claude-3"
+    }
+  },
+  // Categories section
+  "categories": {
+    "dev": {
+      "model": "gpt-3.5"
+    }
+  },
+  "misc": {}
+}`;
+      await fs.writeFile(ohMyPath, originalContent, "utf-8");
+
+      runningApp = await createApp({
+        profilesRoot: tempDir,
+        autoOpen: false,
+      });
+      baseUrl = `http://127.0.0.1:${runningApp.port}`;
+
+      const detailResponse = await fetch(`${baseUrl}/api/profiles/default`);
+      const detail = await detailResponse.json();
+
+      // Save with payload containing blank fields (only fields that pass Zod validation)
+      const payload = {
+        agents: {
+          planner: {
+            temperature: 0,
+            fallback_models: [],
+          },
+          builder: {
+            model: "claude-3",
+          },
+        },
+        categories: {
+          dev: {
+            temperature: 0,
+            fallback_models: [],
+          },
+        },
+        misc: {},
+      } as unknown as import("../../src/shared/config/types").EditableConfig;
+
+      const saveResponse = await fetch(`${baseUrl}/api/profiles/default`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          payload,
+          expectedMtime: detail.mtime,
+        }),
+      });
+
+      expect(saveResponse.status).toBe(200);
+
+      const savedContent = await fs.readFile(ohMyPath, "utf-8");
+
+      // Comments preserved
+      expect(savedContent).toContain("// Top-level comment for agents");
+      expect(savedContent).toContain("/* Planner agent block comment */");
+      expect(savedContent).toContain("// Another agent comment");
+      expect(savedContent).toContain("// Categories section");
+
+      // Blank fields omitted (not in saved text)
+      expect(savedContent).not.toContain('"temperature": 0');
+      expect(savedContent).not.toContain('"fallback_models": []');
+
+      // Builder agent model preserved (non-blank value)
+      expect(savedContent).toContain('"model": "claude-3"');
+    });
   });
 });

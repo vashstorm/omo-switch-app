@@ -10,7 +10,7 @@ use crate::contracts::{
     SaveProfileRequest, SaveProfileResponse, UpdateDisabledProvidersRequest,
 };
 use crate::errors::AppError;
-use crate::jsonc_edit::{jsonc_modify, read_jsonc_file, write_jsonc_file};
+use crate::jsonc_edit::{jsonc_modify, jsonc_read, read_jsonc_file, write_jsonc_file};
 use crate::paths::AppPaths;
 use indexmap::IndexMap;
 use serde_json::Value;
@@ -50,6 +50,76 @@ const GIT_MASTER_MANAGED_FIELDS: &[&str] = &[
     "include_co_authored_by",
     "git_env_prefix",
 ];
+
+/// Check if a managed field value should be omitted (blank/default semantics).
+///
+/// Mirrors TypeScript `shouldOmitField()` from managed-fields.ts.
+fn should_omit_managed_field(key: &str, value: &Value) -> bool {
+    if value.is_null() {
+        return true;
+    }
+    if let Some(s) = value.as_str() {
+        return s.is_empty();
+    }
+    if let Some(arr) = value.as_array() {
+        return arr.is_empty();
+    }
+    // Temperature === 0 is considered default value
+    if key == "temperature" {
+        if let Some(num) = value.as_f64() {
+            return num == 0.0;
+        }
+        if let Some(num) = value.as_i64() {
+            return num == 0;
+        }
+        if let Some(num) = value.as_u64() {
+            return num == 0;
+        }
+    }
+    false
+}
+
+/// Filter managed fields from agent/category objects in editable config payload.
+///
+/// Removes managed fields when values are blank/default. Unmanaged keys are preserved.
+pub fn filter_managed_fields(payload: &mut Value) {
+    if let Some(agents) = payload.get_mut("agents").and_then(|v| v.as_object_mut()) {
+        for (_agent_id, agent_obj) in agents.iter_mut() {
+            if let Some(agent) = agent_obj.as_object_mut() {
+                // Must collect first since we can't modify while iterating
+                let keys_to_remove: Vec<String> = agent
+                    .iter()
+                    .filter(|(key, value)| {
+                        AGENT_MANAGED_FIELDS.contains(&key.as_str())
+                            && should_omit_managed_field(key, value)
+                    })
+                    .map(|(key, _)| key.clone())
+                    .collect();
+                for key in keys_to_remove {
+                    agent.remove(&key);
+                }
+            }
+        }
+    }
+
+    if let Some(categories) = payload.get_mut("categories").and_then(|v| v.as_object_mut()) {
+        for (_category_id, category_obj) in categories.iter_mut() {
+            if let Some(category) = category_obj.as_object_mut() {
+                let keys_to_remove: Vec<String> = category
+                    .iter()
+                    .filter(|(key, value)| {
+                        CATEGORY_MANAGED_FIELDS.contains(&key.as_str())
+                            && should_omit_managed_field(key, value)
+                    })
+                    .map(|(key, _)| key.clone())
+                    .collect();
+                for key in keys_to_remove {
+                    category.remove(&key);
+                }
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 struct ProfileLocation {
@@ -996,10 +1066,140 @@ fn save_profile_internal(
         ));
     }
 
-    let payload_json = serde_json::to_string_pretty(payload)
+    let existing_content = if profile.oh_my_path.exists() {
+        fs::read_to_string(&profile.oh_my_path).map_err(|e| {
+            AppError::ReadError(format!(
+                "Failed to read {}: {}",
+                profile.oh_my_path.display(),
+                e
+            ))
+        })?
+    } else {
+        "{}".to_string()
+    };
+
+    let mut payload_value = serde_json::to_value(payload)
         .map_err(|e| AppError::WriteError(format!("Failed to serialize config: {}", e)))?;
 
-    write_jsonc_file(&profile.oh_my_path, &payload_json)?;
+    filter_managed_fields(&mut payload_value);
+
+    let existing_value = jsonc_read(&existing_content)?;
+
+    // Lossless JSONC modification: preserve comments and unmanaged keys
+    let mut content = existing_content;
+
+    if let Some(payload_agents) = payload_value.get("agents").and_then(|v| v.as_object()) {
+        let existing_agent_ids: Vec<String> = existing_value
+            .get("agents")
+            .and_then(|v| v.as_object())
+            .map(|obj| obj.keys().cloned().collect())
+            .unwrap_or_default();
+
+        let payload_agent_ids: Vec<String> = payload_agents.keys().cloned().collect();
+
+        let all_agent_ids: Vec<&String> = existing_agent_ids
+            .iter()
+            .chain(payload_agent_ids.iter())
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        for agent_id in all_agent_ids {
+            let agent_payload = payload_agents.get(agent_id);
+
+            if agent_payload == Some(&Value::Null) {
+                content = jsonc_modify(&content, &["agents", agent_id], None)?;
+                continue;
+            }
+
+            let existing_agent_fields: std::collections::HashSet<String> = existing_value
+                .get("agents")
+                .and_then(|v| v.as_object())
+                .and_then(|obj| obj.get(agent_id))
+                .and_then(|v| v.as_object())
+                .map(|obj| obj.keys().cloned().collect())
+                .unwrap_or_default();
+
+            for field in AGENT_MANAGED_FIELDS {
+                let path = ["agents", agent_id.as_str(), *field];
+
+                if let Some(agent_obj) = agent_payload.and_then(|v| v.as_object()) {
+                    if agent_obj.contains_key(*field) {
+                        let field_value = agent_obj.get(*field).unwrap();
+                        content = jsonc_modify(&content, &path, Some(field_value))?;
+                    } else if existing_agent_fields.contains(*field) {
+                        content = jsonc_modify(&content, &path, None)?;
+                    }
+                } else if existing_agent_fields.contains(*field) {
+                    content = jsonc_modify(&content, &path, None)?;
+                }
+            }
+        }
+    }
+
+    if let Some(payload_categories) = payload_value.get("categories").and_then(|v| v.as_object()) {
+        let existing_category_ids: Vec<String> = existing_value
+            .get("categories")
+            .and_then(|v| v.as_object())
+            .map(|obj| obj.keys().cloned().collect())
+            .unwrap_or_default();
+
+        let payload_category_ids: Vec<String> = payload_categories.keys().cloned().collect();
+
+        let all_category_ids: Vec<&String> = existing_category_ids
+            .iter()
+            .chain(payload_category_ids.iter())
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        for category_id in all_category_ids {
+            let category_payload = payload_categories.get(category_id);
+
+            if category_payload == Some(&Value::Null) {
+                content = jsonc_modify(&content, &["categories", category_id], None)?;
+                continue;
+            }
+
+            let existing_category_fields: std::collections::HashSet<String> = existing_value
+                .get("categories")
+                .and_then(|v| v.as_object())
+                .and_then(|obj| obj.get(category_id))
+                .and_then(|v| v.as_object())
+                .map(|obj| obj.keys().cloned().collect())
+                .unwrap_or_default();
+
+            for field in CATEGORY_MANAGED_FIELDS {
+                let path = ["categories", category_id.as_str(), *field];
+
+                if let Some(category_obj) = category_payload.and_then(|v| v.as_object()) {
+                    if category_obj.contains_key(*field) {
+                        let field_value = category_obj.get(*field).unwrap();
+                        content = jsonc_modify(&content, &path, Some(field_value))?;
+                    } else if existing_category_fields.contains(*field) {
+                        content = jsonc_modify(&content, &path, None)?;
+                    }
+                } else if existing_category_fields.contains(*field) {
+                    content = jsonc_modify(&content, &path, None)?;
+                }
+            }
+        }
+    }
+
+    if let Some(payload_misc) = payload_value.get("misc").and_then(|v| v.as_object()) {
+        for (section_name, section_value) in payload_misc {
+            let section_path = if existing_value.get(section_name).is_some() {
+                vec![section_name.clone()]
+            } else {
+                vec!["misc".to_string(), section_name.clone()]
+            };
+
+            let path_refs: Vec<&str> = section_path.iter().map(|s| s.as_str()).collect();
+            content = jsonc_modify(&content, &path_refs, Some(section_value))?;
+        }
+    }
+
+    write_jsonc_file(&profile.oh_my_path, &content)?;
 
     let new_mtime = get_mtime_ms(&profile.oh_my_path);
 
@@ -1218,6 +1418,7 @@ pub async fn copy_profile(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
     use tempfile::TempDir;
 
     fn create_test_paths(temp: &TempDir) -> AppPaths {
@@ -2020,5 +2221,528 @@ mod tests {
 
         let mtime = get_mtime_ms(&file_path);
         assert_eq!(mtime, 0);
+    }
+
+    #[test]
+    fn test_filter_removes_model_null() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "model": null,
+                    "variant": "high"
+                }
+            },
+            "categories": {}
+        });
+        filter_managed_fields(&mut payload);
+        assert!(!payload["agents"]["build"].as_object().unwrap().contains_key("model"));
+        assert!(payload["agents"]["build"]["variant"] == "high");
+    }
+
+    #[test]
+    fn test_filter_removes_variant_empty_string() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "variant": "",
+                    "model": "gpt-4"
+                }
+            },
+            "categories": {}
+        });
+        filter_managed_fields(&mut payload);
+        assert!(!payload["agents"]["build"].as_object().unwrap().contains_key("variant"));
+        assert!(payload["agents"]["build"]["model"] == "gpt-4");
+    }
+
+    #[test]
+    fn test_filter_removes_temperature_zero() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "temperature": 0
+                }
+            },
+            "categories": {
+                "quick": {
+                    "temperature": 0.0
+                }
+            }
+        });
+        filter_managed_fields(&mut payload);
+        assert!(!payload["agents"]["build"].as_object().unwrap().contains_key("temperature"));
+        assert!(!payload["categories"]["quick"].as_object().unwrap().contains_key("temperature"));
+    }
+
+    #[test]
+    fn test_filter_removes_fallback_models_empty_array() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "fallback_models": []
+                }
+            },
+            "categories": {
+                "default": {
+                    "fallback_models": []
+                }
+            }
+        });
+        filter_managed_fields(&mut payload);
+        assert!(!payload["agents"]["build"].as_object().unwrap().contains_key("fallback_models"));
+        assert!(!payload["categories"]["default"].as_object().unwrap().contains_key("fallback_models"));
+    }
+
+    #[test]
+    fn test_filter_keeps_non_empty_model() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "model": "gpt-4"
+                }
+            },
+            "categories": {
+                "quick": {
+                    "model": "claude-opus"
+                }
+            }
+        });
+        filter_managed_fields(&mut payload);
+        assert!(payload["agents"]["build"]["model"] == "gpt-4");
+        assert!(payload["categories"]["quick"]["model"] == "claude-opus");
+    }
+
+    #[test]
+    fn test_filter_keeps_non_zero_temperature() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "temperature": 0.7
+                }
+            },
+            "categories": {
+                "default": {
+                    "temperature": 1.2
+                }
+            }
+        });
+        filter_managed_fields(&mut payload);
+        assert!(payload["agents"]["build"]["temperature"] == 0.7);
+        assert!(payload["categories"]["default"]["temperature"] == 1.2);
+    }
+
+    #[test]
+    fn test_filter_keeps_non_empty_fallback_models() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "fallback_models": ["gpt-3.5", "gpt-4"]
+                }
+            },
+            "categories": {
+                "default": {
+                    "fallback_models": ["claude-sonnet"]
+                }
+            }
+        });
+        filter_managed_fields(&mut payload);
+        let arr = payload["agents"]["build"]["fallback_models"].as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0], "gpt-3.5");
+    }
+
+    #[test]
+    fn test_filter_preserves_unmanaged_keys() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "model": null,
+                    "custom_setting": "value",
+                    "another_key": 42
+                }
+            },
+            "categories": {
+                "quick": {
+                    "variant": "",
+                    "custom_field": true
+                }
+            }
+        });
+        filter_managed_fields(&mut payload);
+        assert!(payload["agents"]["build"]["custom_setting"] == "value");
+        assert!(payload["agents"]["build"]["another_key"] == 42);
+        assert!(payload["categories"]["quick"]["custom_field"] == true);
+        assert!(!payload["agents"]["build"].as_object().unwrap().contains_key("model"));
+        assert!(!payload["categories"]["quick"].as_object().unwrap().contains_key("variant"));
+    }
+
+    #[test]
+    fn test_filter_combines_all_omit_cases() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "model": null,
+                    "variant": "",
+                    "temperature": 0,
+                    "fallback_models": [],
+                    "prompt_append": null,
+                    "maxTokens": null,
+                    "category": null,
+                    "ultrawork": null
+                }
+            },
+            "categories": {
+                "default": {
+                    "model": null,
+                    "variant": "",
+                    "temperature": 0,
+                    "description": "",
+                    "fallback_models": [],
+                    "prompt_append": null
+                }
+            }
+        });
+        filter_managed_fields(&mut payload);
+        assert_eq!(payload["agents"]["build"].as_object().unwrap().len(), 0);
+        assert_eq!(payload["categories"]["default"].as_object().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_filter_keeps_all_non_default_values() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "model": "claude-opus",
+                    "variant": "high",
+                    "temperature": 0.5,
+                    "fallback_models": ["gpt-4"],
+                    "prompt_append": "some text",
+                    "maxTokens": 4000,
+                    "category": "quick",
+                    "ultrawork": { "model": "gpt-4" }
+                }
+            },
+            "categories": {
+                "default": {
+                    "model": "gpt-4o",
+                    "variant": "low",
+                    "temperature": 0.2,
+                    "description": "Default category",
+                    "fallback_models": ["claude"],
+                    "prompt_append": "append text"
+                }
+            }
+        });
+        filter_managed_fields(&mut payload);
+        assert_eq!(payload["agents"]["build"].as_object().unwrap().len(), 8);
+        assert_eq!(payload["categories"]["default"].as_object().unwrap().len(), 6);
+    }
+
+    #[test]
+    fn test_save_profile_preserves_jsonc_comments() {
+        let temp = TempDir::new().unwrap();
+        let paths = create_test_paths(&temp);
+
+        create_global_config(&paths.config_file, None);
+
+        let profiles_root = paths.resolve_profiles_root(None);
+        fs::create_dir_all(&profiles_root).unwrap();
+
+        let initial_content = r#"{
+  // Profile configuration
+  "agents": {
+    // Build agent settings
+    "build": {
+      "model": "old-model",
+      "variant": "low"
+    }
+  },
+  "categories": {
+    /* Quick category */
+    "quick": {
+      "model": "fast-model"
+    }
+  }
+}"#;
+        create_profile(&profiles_root, "test", r#"{ "agents": {} }"#, Some(initial_content));
+
+        let oh_my_path = profiles_root.join("test/oh-my-openagent.jsonc");
+        let current_mtime = get_mtime_ms(&oh_my_path);
+
+        let mut agents = IndexMap::new();
+        agents.insert(
+            "build".to_string(),
+            Some(AgentConfig {
+                model: Some("new-model".to_string()),
+                variant: Some("high".to_string()),
+                temperature: None,
+                prompt_append: None,
+                fallback_models: None,
+                ultrawork: None,
+                max_tokens: None,
+                category: None,
+            }),
+        );
+
+        let mut categories = IndexMap::new();
+        categories.insert(
+            "quick".to_string(),
+            Some(CategoryConfig {
+                model: Some("fast-model".to_string()),
+                variant: None,
+                temperature: None,
+                description: None,
+                prompt_append: None,
+                fallback_models: None,
+            }),
+        );
+
+        let payload = EditableConfig {
+            agents,
+            categories,
+            misc: None,
+        };
+
+        save_profile_internal(&paths, "test", &payload, current_mtime).unwrap();
+
+        let saved_content = fs::read_to_string(&oh_my_path).unwrap();
+
+        assert!(saved_content.contains("// Profile configuration"));
+        assert!(saved_content.contains("// Build agent settings"));
+        assert!(saved_content.contains("/* Quick category */"));
+        assert!(saved_content.contains("\"model\": \"new-model\""));
+        assert!(saved_content.contains("\"variant\": \"high\""));
+        assert!(!saved_content.contains("\"model\": \"old-model\""));
+        assert!(!saved_content.contains("\"variant\": \"low\""));
+    }
+
+    #[test]
+    fn test_save_profile_omits_empty_ultrawork_prompt_append() {
+        let temp = TempDir::new().unwrap();
+        let paths = create_test_paths(&temp);
+
+        create_global_config(&paths.config_file, None);
+
+        let profiles_root = paths.resolve_profiles_root(None);
+        fs::create_dir_all(&profiles_root).unwrap();
+
+        let initial_content = r#"{
+  "agents": {
+    "sisyphus": {
+      "ultrawork": {
+        "model": "old-model",
+        "variant": "low"
+      }
+    }
+  }
+}"#;
+        create_profile(&profiles_root, "test", r#"{ "agents": {} }"#, Some(initial_content));
+
+        let oh_my_path = profiles_root.join("test/oh-my-openagent.jsonc");
+        let current_mtime = get_mtime_ms(&oh_my_path);
+
+        let mut agents = IndexMap::new();
+        agents.insert(
+            "sisyphus".to_string(),
+            Some(AgentConfig {
+                model: None,
+                variant: None,
+                temperature: None,
+                prompt_append: None,
+                fallback_models: None,
+                ultrawork: Some(crate::contracts::UltraworkConfig {
+                    model: Some("new-model".to_string()),
+                    variant: Some("medium".to_string()),
+                    prompt_append: None,
+                }),
+                max_tokens: None,
+                category: None,
+            }),
+        );
+
+        let payload = EditableConfig {
+            agents,
+            categories: IndexMap::new(),
+            misc: None,
+        };
+
+        save_profile_internal(&paths, "test", &payload, current_mtime).unwrap();
+
+        let saved_content = fs::read_to_string(&oh_my_path).unwrap();
+        let saved_value = jsonc_read(&saved_content).unwrap();
+        let ultrawork = saved_value
+            .get("agents")
+            .and_then(|agents| agents.get("sisyphus"))
+            .and_then(|agent| agent.get("ultrawork"))
+            .and_then(|value| value.as_object())
+            .unwrap();
+
+        assert_eq!(ultrawork.get("model").unwrap(), "new-model");
+        assert_eq!(ultrawork.get("variant").unwrap(), "medium");
+        assert!(!ultrawork.contains_key("prompt_append"));
+        assert!(!saved_content.contains("\"prompt_append\": null"));
+    }
+
+    #[test]
+    fn test_save_profile_removes_blank_default_fields() {
+        let temp = TempDir::new().unwrap();
+        let paths = create_test_paths(&temp);
+
+        create_global_config(&paths.config_file, None);
+
+        let profiles_root = paths.resolve_profiles_root(None);
+        fs::create_dir_all(&profiles_root).unwrap();
+
+        let initial_content = r#"{
+  "agents": {
+    "build": {
+      "model": null,
+      "variant": "",
+      "temperature": 0,
+      "fallback_models": []
+    }
+  },
+  "categories": {
+    "quick": {
+      "variant": "",
+      "temperature": 0
+    }
+  }
+}"#;
+        create_profile(&profiles_root, "test", r#"{ "agents": {} }"#, Some(initial_content));
+
+        let oh_my_path = profiles_root.join("test/oh-my-openagent.jsonc");
+        let current_mtime = get_mtime_ms(&oh_my_path);
+
+        let mut agents = IndexMap::new();
+        agents.insert(
+            "build".to_string(),
+            Some(AgentConfig {
+                model: None,
+                variant: None,
+                temperature: None,
+                prompt_append: None,
+                fallback_models: None,
+                ultrawork: None,
+                max_tokens: None,
+                category: None,
+            }),
+        );
+
+        let mut categories = IndexMap::new();
+        categories.insert(
+            "quick".to_string(),
+            Some(CategoryConfig {
+                model: None,
+                variant: None,
+                temperature: None,
+                description: None,
+                prompt_append: None,
+                fallback_models: None,
+            }),
+        );
+
+        let payload = EditableConfig {
+            agents,
+            categories,
+            misc: None,
+        };
+
+        save_profile_internal(&paths, "test", &payload, current_mtime).unwrap();
+
+        let saved_content = fs::read_to_string(&oh_my_path).unwrap();
+        let saved_value = jsonc_read(&saved_content).unwrap();
+
+        let build_agent = saved_value.get("agents").and_then(|a| a.get("build")).unwrap();
+        assert!(!build_agent.as_object().unwrap().contains_key("model"));
+        assert!(!build_agent.as_object().unwrap().contains_key("variant"));
+        assert!(!build_agent.as_object().unwrap().contains_key("temperature"));
+        assert!(!build_agent.as_object().unwrap().contains_key("fallback_models"));
+
+        let quick_category = saved_value.get("categories").and_then(|c| c.get("quick")).unwrap();
+        assert!(!quick_category.as_object().unwrap().contains_key("variant"));
+        assert!(!quick_category.as_object().unwrap().contains_key("temperature"));
+    }
+
+    #[test]
+    fn test_save_profile_preserves_unmanaged_keys() {
+        let temp = TempDir::new().unwrap();
+        let paths = create_test_paths(&temp);
+
+        create_global_config(&paths.config_file, None);
+
+        let profiles_root = paths.resolve_profiles_root(None);
+        fs::create_dir_all(&profiles_root).unwrap();
+
+        let initial_content = r#"{
+  "agents": {
+    "build": {
+      "model": "gpt-4",
+      "custom_setting": "value",
+      "another_key": 42
+    }
+  },
+  "categories": {
+    "quick": {
+      "model": "claude",
+      "custom_field": true
+    }
+  }
+}"#;
+        create_profile(&profiles_root, "test", r#"{ "agents": {} }"#, Some(initial_content));
+
+        let oh_my_path = profiles_root.join("test/oh-my-openagent.jsonc");
+        let current_mtime = get_mtime_ms(&oh_my_path);
+
+        let mut agents = IndexMap::new();
+        agents.insert(
+            "build".to_string(),
+            Some(AgentConfig {
+                model: Some("gpt-5".to_string()),
+                variant: None,
+                temperature: None,
+                prompt_append: None,
+                fallback_models: None,
+                ultrawork: None,
+                max_tokens: None,
+                category: None,
+            }),
+        );
+
+        let mut categories = IndexMap::new();
+        categories.insert(
+            "quick".to_string(),
+            Some(CategoryConfig {
+                model: Some("claude-opus".to_string()),
+                variant: None,
+                temperature: None,
+                description: None,
+                prompt_append: None,
+                fallback_models: None,
+            }),
+        );
+
+        let payload = EditableConfig {
+            agents,
+            categories,
+            misc: None,
+        };
+
+        save_profile_internal(&paths, "test", &payload, current_mtime).unwrap();
+
+        let saved_content = fs::read_to_string(&oh_my_path).unwrap();
+        let saved_value = jsonc_read(&saved_content).unwrap();
+
+        let build_agent = saved_value.get("agents").and_then(|a| a.get("build")).unwrap();
+        assert!(build_agent.as_object().unwrap().contains_key("custom_setting"));
+        assert!(build_agent.as_object().unwrap().contains_key("another_key"));
+        assert_eq!(build_agent.get("custom_setting").unwrap(), "value");
+        assert_eq!(build_agent.get("another_key").unwrap(), 42);
+        assert_eq!(build_agent.get("model").unwrap(), "gpt-5");
+
+        let quick_category = saved_value.get("categories").and_then(|c| c.get("quick")).unwrap();
+        assert!(quick_category.as_object().unwrap().contains_key("custom_field"));
+        assert_eq!(quick_category.get("custom_field").unwrap(), true);
+        assert_eq!(quick_category.get("model").unwrap(), "claude-opus");
     }
 }

@@ -6,7 +6,7 @@
       // "model": "cubence-claude/claude-sonnet-4-6",
       // "model": "aigo-claude/claude-sonnet-4-6",
       // "variant": "medium",
-      "model": "aliyun-cp/kimi-k2.5",
+      "model": "kimi-for-coding/k2p5",
       // "model": "openai/gpt-5.4",
       // "variant": "medium",
       "temperature": 0.1,
@@ -31,9 +31,7 @@
       // "model": "cubence-gpt/gpt-5.4",
       // "model": "cube-clause/claude-sonnet-4-6",
       // "model": "pack-claude/claude-sonnet-4-6",
-      "fallback_models": [
-        "alibaba-coding-plan-cn/kimi-k2.5"
-      ],
+      "fallback_models": ["alibaba-coding-plan-cn/kimi-k2.5"],
       "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",
       "temperature": 0.2
     },
@@ -51,8 +49,7 @@
     },
     "librarian": {
       "model": "alibaba-coding-plan-cn/glm-5",
-      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",
-      "temperature": 0
+      "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。"
     },
     "explore": {
       "model": "alibaba-coding-plan-cn/qwen3.5-plus",
@@ -126,14 +123,10 @@
     }
   },
   "tmux": {
-    "enabled": true,
-    "layout": "main-vertical", // Recommended: main-vertical or main-horizontal, tiled
-    "main_pane_size": 60, // Main pane width percentage
-    "agent_pane_min_width": 30, // Agent pane minimum width percentage
-    "main_pane_min_width": 100, // Minimum main pane width
-    "isolation": "window" // Isolation mode: inline | window | session
+    "enabled": true
   },
   "git_master": {
+    "enabled": null,
     "commit_footer": true,
     "include_co_authored_by": true,
     "git_env_prefix": "GIT_MASTER=1"

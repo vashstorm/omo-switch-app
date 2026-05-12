@@ -10,11 +10,9 @@ export default defineConfig({
     exclude: [
       // Retired HTTP server tests - now covered by Rust cargo tests (115+ tests)
       // See .sisyphus/evidence/task-9-test-audit.txt for mapping
-      "tests/integration/api-*.test.ts",
       "tests/integration/global-config-api.test.ts",
       "tests/integration/profiles-global-config.test.ts",
       "tests/integration/static-font-assets.test.ts",
-      "tests/integration/config-roundtrip-regression.test.ts",
     ],
   },
   resolve: {

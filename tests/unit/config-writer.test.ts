@@ -513,6 +513,246 @@ describe("config writer", () => {
     expect(data.agents.planner.prompt_append).toBeUndefined();
     expect(data.agents.planner.variant).toBe("low");
   });
+
+  it("omits model field when payload has null", async () => {
+    const initialContent = `{
+  // Agent configuration
+  "agents": {
+    "planner": {
+      "variant": "high"
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload = {
+      agents: {
+        planner: {
+          model: null,
+          variant: "high",
+        },
+      },
+      categories: {},
+      misc: {},
+    } as unknown as EditableConfig;
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.planner.model).toBeUndefined();
+    expect(data.agents.planner.variant).toBe("high");
+    expect(saved).toContain("// Agent configuration");
+  });
+
+  it("omits variant field when payload has empty string", async () => {
+    const initialContent = `{
+  // Agent settings
+  "agents": {
+    "planner": {
+      "model": "gpt-4"
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload = {
+      agents: {
+        planner: {
+          model: "gpt-4",
+          variant: "",
+        },
+      },
+      categories: {},
+      misc: {},
+    } as unknown as EditableConfig;
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.planner.variant).toBeUndefined();
+    expect(data.agents.planner.model).toBe("gpt-4");
+    expect(saved).toContain("// Agent settings");
+  });
+
+  it("omits temperature field when payload has zero (agent)", async () => {
+    const initialContent = `{
+  // Temperature settings
+  "agents": {
+    "planner": {
+      "model": "gpt-4"
+    }
+  },
+  "categories": {
+    "backend": {
+      "model": "gpt-3"
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload: EditableConfig = {
+      agents: {
+        planner: {
+          model: "gpt-4",
+          temperature: 0,
+        },
+      },
+      categories: {
+        backend: {
+          model: "gpt-3",
+          temperature: 0,
+        },
+      },
+      misc: {},
+    };
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.planner.temperature).toBeUndefined();
+    expect(data.categories.backend.temperature).toBeUndefined();
+    expect(saved).toContain("// Temperature settings");
+  });
+
+  it("omits fallback_models field when payload has empty array", async () => {
+    const initialContent = `{
+  // Fallback configuration
+  "agents": {
+    "planner": {
+      "model": "gpt-4"
+    }
+  },
+  "categories": {
+    "backend": {
+      "model": "gpt-3"
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload: EditableConfig = {
+      agents: {
+        planner: {
+          model: "gpt-4",
+          fallback_models: [],
+        },
+      },
+      categories: {
+        backend: {
+          model: "gpt-3",
+          fallback_models: [],
+        },
+      },
+      misc: {},
+    };
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.planner.fallback_models).toBeUndefined();
+    expect(data.categories.backend.fallback_models).toBeUndefined();
+    expect(saved).toContain("// Fallback configuration");
+  });
+
+  it("preserves comments when omitting default fields in payload", async () => {
+    const initialContent = `{
+  // Top-level comment
+  "agents": {
+    // Agent block comment
+    "planner": {
+      // Planner field comment
+      "model": "gpt-4", // inline model comment
+      "variant": "medium" // keep variant
+    }
+  },
+  "categories": {
+    // Category block comment
+    "backend": {
+      "model": "gpt-3",
+      "description": "backend services"
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload = {
+      agents: {
+        planner: {
+          model: null,
+          variant: "",
+          temperature: 0,
+          fallback_models: [],
+        },
+      },
+      categories: {
+        backend: {
+          model: "gpt-3",
+          fallback_models: [],
+        },
+      },
+      misc: {},
+    } as unknown as EditableConfig;
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    // All default/empty fields should be omitted
+    expect(data.agents.planner.model).toBeUndefined();
+    expect(data.agents.planner.variant).toBeUndefined();
+    expect(data.agents.planner.temperature).toBeUndefined();
+    expect(data.agents.planner.fallback_models).toBeUndefined();
+    expect(data.categories.backend.fallback_models).toBeUndefined();
+
+    // Comments should be preserved
+    expect(saved).toContain("// Top-level comment");
+    expect(saved).toContain("// Agent block comment");
+    expect(saved).toContain("// Category block comment");
+  });
 });
 
 describe("writeDisabledProviders", () => {

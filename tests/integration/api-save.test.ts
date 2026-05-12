@@ -40,6 +40,14 @@ async function createTempProfilesRoot(tempDir: string): Promise<string> {
           planner: {
             model: "gpt-5",
             variant: "low",
+            temperature: 0.8,
+            fallback_models: ["gpt-4"],
+          },
+        },
+        categories: {
+          default: {
+            temperature: 0.5,
+            fallback_models: ["gpt-3.5"],
           },
         },
       },
@@ -225,5 +233,49 @@ describe("api save", () => {
       error: "CONFLICT",
       message: "File modified externally. Please reload.",
     });
+  });
+
+  it("omits blank/default managed fields in saved file", async () => {
+    const detailResponse = await fetch(`${baseUrl}/api/profiles/default`);
+    const detail = await detailResponse.json();
+
+    // Payload with blank/default managed fields (only fields that pass Zod validation)
+    const payload = {
+      agents: {
+        planner: {
+          temperature: 0,
+          fallback_models: [],
+        },
+      },
+      categories: {
+        default: {
+          temperature: 0,
+          fallback_models: [],
+        },
+      },
+      misc: {},
+    } as unknown as import("../../src/shared/config/types").EditableConfig;
+
+    const response = await fetch(`${baseUrl}/api/profiles/default`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        payload,
+        expectedMtime: detail.mtime,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const savedContent = await fs.readFile(ohMyPath, "utf-8");
+
+    // Verify blank fields are NOT present in saved text
+    expect(savedContent).not.toContain('"temperature": 0');
+    expect(savedContent).not.toContain('"fallback_models": []');
+
+    // Verify the agent object exists
+    expect(savedContent).toContain('"planner"');
   });
 });

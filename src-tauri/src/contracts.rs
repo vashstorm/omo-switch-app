@@ -35,6 +35,7 @@ pub struct ListProfilesResponse {
 pub struct UltraworkConfig {
     pub model: Option<String>,
     pub variant: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_append: Option<String>,
 }
 
@@ -43,6 +44,7 @@ pub struct AgentConfig {
     pub model: Option<String>,
     pub variant: Option<String>,
     pub temperature: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_append: Option<String>,
     pub fallback_models: Option<Vec<String>>,
     pub ultrawork: Option<UltraworkConfig>,
@@ -57,6 +59,7 @@ pub struct CategoryConfig {
     pub variant: Option<String>,
     pub temperature: Option<f64>,
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_append: Option<String>,
     pub fallback_models: Option<Vec<String>>,
 }
@@ -549,6 +552,31 @@ mod tests {
         let parsed_alias: AgentConfig =
             serde_json::from_str(r#"{"model":"openai/gpt-5","max_tokens":32000}"#).unwrap();
         assert_eq!(parsed_alias.max_tokens, Some(32000));
+    }
+
+    #[test]
+    fn test_empty_prompt_append_is_omitted() {
+        let config = AgentConfig {
+            model: Some("anthropic/claude-opus-4-5".to_string()),
+            variant: None,
+            temperature: None,
+            prompt_append: None,
+            fallback_models: None,
+            ultrawork: Some(UltraworkConfig {
+                model: Some("openai/gpt-5".to_string()),
+                variant: Some("medium".to_string()),
+                prompt_append: None,
+            }),
+            max_tokens: None,
+            category: None,
+        };
+
+        let value = serde_json::to_value(&config).unwrap();
+        let agent = value.as_object().unwrap();
+        let ultrawork = agent.get("ultrawork").unwrap().as_object().unwrap();
+
+        assert!(!agent.contains_key("prompt_append"));
+        assert!(!ultrawork.contains_key("prompt_append"));
     }
 
     #[test]
