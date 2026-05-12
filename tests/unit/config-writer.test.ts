@@ -264,6 +264,255 @@ describe("config writer", () => {
     expect(data.tmux).toBeUndefined();
     expect(data.git_master).toBeUndefined();
   });
+
+  it("removes existing null values from config file", async () => {
+    const initialContent = `{
+  "agents": {
+    "planner": {
+      "model": null,
+      "variant": "low"
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload: EditableConfig = {
+      agents: {},
+      categories: {},
+      misc: {},
+    };
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.planner.model).toBeUndefined();
+    expect(data.agents.planner.variant).toBe("low");
+  });
+
+  it("removes existing empty arrays from config file", async () => {
+    const initialContent = `{
+  "agents": {
+    "planner": {
+      "fallback_models": [],
+      "model": "gpt-4"
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload: EditableConfig = {
+      agents: {},
+      categories: {},
+      misc: {},
+    };
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.planner.fallback_models).toBeUndefined();
+    expect(data.agents.planner.model).toBe("gpt-4");
+  });
+
+  it("removes existing empty strings from config file", async () => {
+    const initialContent = `{
+  "agents": {
+    "planner": {
+      "prompt_append": "",
+      "model": "gpt-4"
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload: EditableConfig = {
+      agents: {},
+      categories: {},
+      misc: {},
+    };
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.planner.prompt_append).toBeUndefined();
+    expect(data.agents.planner.model).toBe("gpt-4");
+  });
+
+  it("removes nested null values", async () => {
+    const initialContent = `{
+  "agents": {
+    "planner": {
+      "ultrawork": {
+        "model": null,
+        "variant": "low"
+      }
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload: EditableConfig = {
+      agents: {},
+      categories: {},
+      misc: {},
+    };
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.planner.ultrawork.model).toBeUndefined();
+    expect(data.agents.planner.ultrawork.variant).toBe("low");
+  });
+
+  it("handles null in unmanaged fields", async () => {
+    const initialContent = `{
+  "agents": {
+    "planner": {
+      "model": "gpt-4",
+      "custom_field": null
+    }
+  },
+  "top_level_null": null
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload: EditableConfig = {
+      agents: {},
+      categories: {},
+      misc: {},
+    };
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.planner.custom_field).toBeUndefined();
+    expect(data.top_level_null).toBeUndefined();
+    expect(data.agents.planner.model).toBe("gpt-4");
+  });
+
+  it("preserves comments while cleaning empty values", async () => {
+    const initialContent = `{
+  // Agent configuration
+  "agents": {
+    // Planner agent
+    "planner": {
+      "model": null, // should be cleaned
+      "variant": "low" // keep this
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload: EditableConfig = {
+      agents: {},
+      categories: {},
+      misc: {},
+    };
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(saved).toContain("// Agent configuration");
+    expect(saved).toContain("// Planner agent");
+    expect(saved).toContain("// keep this");
+    expect(data.agents.planner.model).toBeUndefined();
+    expect(data.agents.planner.variant).toBe("low");
+  });
+
+  it("cleans empty values while applying normal updates", async () => {
+    const initialContent = `{
+  "agents": {
+    "planner": {
+      "model": null,
+      "fallback_models": [],
+      "prompt_append": "",
+      "variant": "low"
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload: EditableConfig = {
+      agents: {
+        planner: {
+          model: "gpt-5",
+          variant: "low",
+        },
+      },
+      categories: {},
+      misc: {},
+    };
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.planner.model).toBe("gpt-5");
+    expect(data.agents.planner.fallback_models).toBeUndefined();
+    expect(data.agents.planner.prompt_append).toBeUndefined();
+    expect(data.agents.planner.variant).toBe("low");
+  });
 });
 
 describe("writeDisabledProviders", () => {
