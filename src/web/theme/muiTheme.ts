@@ -15,6 +15,7 @@ import {
 } from "./typography";
 import {
   TRANSITIONS,
+  DURATIONS,
   createReducedMotionTransitions,
   EASING,
 } from "./motionTokens";
@@ -167,12 +168,23 @@ function buildComponentOverrides(
     MuiOutlinedInput: {
       styleOverrides: {
         notchedOutline: {
+          "& legend": {
+            transition: "none",
+          },
           "& legend > span": {
             fontSize: "0.5625rem",
             fontWeight: 500,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
           },
+        },
+      },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          transition: `color ${DURATIONS.FAST}ms ${EASING.EASE_OUT}, transform ${DURATIONS.FAST}ms ${EASING.EASE_OUT}`,
+          willChange: "color, transform",
         },
       },
     },
