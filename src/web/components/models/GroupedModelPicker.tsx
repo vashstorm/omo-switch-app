@@ -403,8 +403,10 @@ function GroupedModelPickerComponent({
           shrink
           sx={{
             position: "absolute",
-            top: -7,
-            left: 14,
+            top: 0,
+            left: 0,
+            transform: "translate(14px, -9px) scale(0.75)",
+            transformOrigin: "top left",
             fontSize: "0.75rem",
             fontWeight: 500,
             letterSpacing: "0.05em",
@@ -413,7 +415,7 @@ function GroupedModelPickerComponent({
             zIndex: 1,
             pointerEvents: "none",
             fontFamily: MONO_FONT,
-            lineHeight: 1,
+            lineHeight: "1.4375em",
             backgroundColor: "transparent",
             transition: "color 150ms cubic-bezier(0.4, 0, 0.2, 1)",
           }}
