@@ -16,3 +16,9 @@ src-tauri/target/
 .playwright-mcp/
 server_logs/
 .worktrees/
+
+# Claude Code local settings
+.claude/
+
+# Documentation (development notes)
+docs/
