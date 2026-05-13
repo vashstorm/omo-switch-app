@@ -442,7 +442,7 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                    label="Temperature"
                    type="text"
                    size="small"
-                   value={agent.temperature === undefined ? "" : String(agent.temperature)}
+                   value={typeof agent.temperature === "number" && !Number.isNaN(agent.temperature) ? String(agent.temperature) : ""}
                    onChange={handleTemperatureChange}
                     sx={compactNumberFieldSx}
                     slotProps={{

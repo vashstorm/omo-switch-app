@@ -357,7 +357,7 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
                   label="Temperature"
                   type="text"
                   size="small"
-                  value={category.temperature === undefined ? "" : String(category.temperature)}
+                  value={typeof category.temperature === "number" && !Number.isNaN(category.temperature) ? String(category.temperature) : ""}
                   onChange={handleTemperatureChange}
                   sx={compactNumberFieldSx}
                   slotProps={{

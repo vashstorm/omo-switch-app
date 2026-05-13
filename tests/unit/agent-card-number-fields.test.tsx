@@ -49,6 +49,23 @@ describe("Agent and category numeric fields", () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ maxTokens: 63000 }));
   });
 
+  test("renders null agent temperature as the default empty value", () => {
+    render(
+      <ThemeProvider initialTheme="light">
+        <AgentCard
+          id="planner"
+          agent={{ model: "openai/gpt-5.3-codex", temperature: null } as any}
+          availableModels={["openai/gpt-5.3-codex"]}
+          availableModelGroups={[]}
+          onChange={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByTestId("agent-temperature-planner")).toHaveValue("");
+  });
+
   test("renders category temperature value as a visible text input", () => {
     const onChange = vi.fn();
 
@@ -76,5 +93,22 @@ describe("Agent and category numeric fields", () => {
 
     fireEvent.click(screen.getByTestId("category-temperature-review-increase"));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ temperature: 0.4 }));
+  });
+
+  test("renders null category temperature as the default empty value", () => {
+    render(
+      <ThemeProvider initialTheme="light">
+        <CategoryCard
+          id="review"
+          category={{ model: "openai/gpt-5.4", temperature: null } as any}
+          availableModels={["openai/gpt-5.4"]}
+          availableModelGroups={[]}
+          onChange={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByTestId("category-temperature-review")).toHaveValue("");
   });
 });
