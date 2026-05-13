@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, test, vi, afterEach } from "vitest";
 import React from "react";
-import { ProvidersEditor } from "../../src/web/components/misc/ProvidersEditor";
+import { ProvidersEditor } from "../../src/web/components/providers/ProvidersEditor";
 import type { ProviderEntry } from "../../src/web/hooks/useProviders";
 
 describe("ProvidersEditor", () => {

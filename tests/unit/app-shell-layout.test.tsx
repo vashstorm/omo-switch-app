@@ -95,6 +95,7 @@ describe("AppShell left nav layout", () => {
     expect(screen.getByTestId("nav-link-category-deep")).toBeInTheDocument();
     expect(screen.getByTestId("nav-link-category-quick")).toBeInTheDocument();
     expect(screen.getByTestId("nav-link-misc-tmux")).toBeInTheDocument();
+    expect(screen.queryByTestId("nav-link-misc-providers")).not.toBeInTheDocument();
   });
 
   test("navigation controls expose descriptive aria labels", () => {

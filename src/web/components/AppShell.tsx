@@ -9,6 +9,7 @@ import { SidebarNav } from "./shell/SidebarNav";
 import { SectionShell } from "./shell/SectionShell";
 import { lightTokens, darkTokens } from "../theme/designTokens";
 import { DURATIONS, EASING } from "../theme/motionTokens";
+import type { ProviderActivationMenuProps } from "./providers/ProviderActivationMenu";
 
 interface AppShellProps {
   title?: string;
@@ -54,10 +55,7 @@ interface AppShellProps {
   respectsMotion?: boolean;
   isSaving?: boolean;
   saveSuccess?: boolean;
-  providerCatalog?: string[];
-  disabledProviders?: string[];
-  profileId?: string;
-  updateDisabledProviders?: (profileId: string, disabledProviders: string[]) => void;
+  providerPanelProps?: ProviderActivationMenuProps;
 }
 
 const sectionEntrance = keyframes`
@@ -114,10 +112,7 @@ export function AppShell({
   respectsMotion = true,
   isSaving = false,
   saveSuccess = false,
-  providerCatalog,
-  disabledProviders,
-  profileId,
-  updateDisabledProviders,
+  providerPanelProps,
 }: AppShellProps) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -248,10 +243,7 @@ export function AppShell({
           categoryModelMap={categoryModelMap}
           isSaving={isSaving}
           saveSuccess={saveSuccess}
-          providerCatalog={providerCatalog}
-          disabledProviders={disabledProviders}
-          profileId={profileId}
-          updateDisabledProviders={updateDisabledProviders}
+          providerPanelProps={providerPanelProps}
         />
 
           <Box sx={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>

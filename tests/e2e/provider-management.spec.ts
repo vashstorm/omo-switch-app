@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 const mockProfiles = {
   profiles: [{ id: "profile-1", label: "Profile 1" }],
@@ -47,11 +47,45 @@ test.describe("Provider Management Lifecycle", () => {
     deletedProviderNames = [];
   }
 
+  function buildProfileDetail() {
+    const availableModels = providers.flatMap((provider) =>
+      provider.models.map((model) => `${provider.name}/${model.name}`)
+    );
+
+    return {
+      baseline: { agents: {}, categories: {}, misc: {} },
+      editable: { agents: {}, categories: {}, misc: {} },
+      effective: { agents: {}, categories: {}, misc: {} },
+      readonlyTail: {},
+      rawMisc: {},
+      mtime: 1000,
+      errors: [],
+      availableModels,
+      availableModelGroups: [],
+      disabledProviders: [],
+      providerCatalog: providers.map((provider) => provider.name),
+    };
+  }
+
+  async function openProvidersPanel(page: Page) {
+    await page.waitForSelector('[data-testid="provider-activation-button"]', { state: "visible" });
+    await page.locator('[data-testid="provider-activation-button"]').click();
+    await page.waitForSelector('[data-testid="providers-editor"]', { state: "visible" });
+  }
+
   test.beforeEach(async ({ page }) => {
     resetState();
 
     await page.route("**/api/profiles", async (route) => {
       await route.fulfill({ json: mockProfiles });
+    });
+
+    await page.route("**/api/profiles/profile-1", async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({ json: buildProfileDetail() });
+      } else {
+        await route.fulfill({ json: { success: true, mtime: Date.now() } });
+      }
     });
 
     await page.route("**/api/config/global", async (route) => {
@@ -141,7 +175,7 @@ test.describe("Provider Management Lifecycle", () => {
 
   test("create provider, create model, edit maxTokens", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector('[data-testid="providers-editor"]', { state: "visible" });
+    await openProvidersPanel(page);
 
     // Initial state: should have test-provider with test-model
     await expect(page.locator('[data-testid="provider-section-test-provider"]')).toBeVisible();
@@ -182,7 +216,7 @@ test.describe("Provider Management Lifecycle", () => {
 
   test("validation failure for invalid provider name", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector('[data-testid="providers-editor"]', { state: "visible" });
+    await openProvidersPanel(page);
 
     const nameInput = page.locator('[data-testid="provider-create-input"]');
 
@@ -198,7 +232,7 @@ test.describe("Provider Management Lifecycle", () => {
 
   test("validation failure for invalid maxTokens", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector('[data-testid="providers-editor"]', { state: "visible" });
+    await openProvidersPanel(page);
 
     // Start editing maxTokens on existing model
     await page.locator('[data-testid="model-max-tokens-test-provider-test-model"]').click();
@@ -216,7 +250,7 @@ test.describe("Provider Management Lifecycle", () => {
 
   test("referenced delete - provider delete shows confirmation", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector('[data-testid="providers-editor"]', { state: "visible" });
+    await openProvidersPanel(page);
 
     // Click delete on provider
     await page.locator('[data-testid="provider-delete-test-provider"]').click();
@@ -245,7 +279,7 @@ test.describe("Provider Management Lifecycle", () => {
 
   test("delete model full flow", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector('[data-testid="providers-editor"]', { state: "visible" });
+    await openProvidersPanel(page);
 
     // Click delete on model
     await page.locator('[data-testid="model-delete-test-provider-test-model"]').click();
@@ -265,7 +299,7 @@ test.describe("Provider Management Lifecycle", () => {
 
   test("full cycle: create provider, add model, edit, delete model, delete provider", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector('[data-testid="providers-editor"]', { state: "visible" });
+    await openProvidersPanel(page);
 
     // 1. Create provider
     await page.locator('[data-testid="provider-create-input"]').fill("cycle-provider");

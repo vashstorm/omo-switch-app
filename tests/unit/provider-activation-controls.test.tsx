@@ -9,6 +9,18 @@ describe("ProviderActivationMenu", () => {
     vi.clearAllMocks();
   });
 
+  const providerManagementProps = {
+    providersList: [],
+    providersLoading: false,
+    providersError: null,
+    onCreateProvider: vi.fn(),
+    onCreateModel: vi.fn(),
+    onUpdateModel: vi.fn(),
+    onDeleteModel: vi.fn(),
+    onDeleteProvider: vi.fn(),
+    onReloadProviders: vi.fn(),
+  };
+
   test("renders provider catalog items excluding None", async () => {
     const mockUpdate = vi.fn();
     const providerCatalog = ["openai", "anthropic", "None", "google"];
@@ -20,6 +32,7 @@ describe("ProviderActivationMenu", () => {
         disabledProviders={disabledProviders}
         profileId="test-profile"
         updateDisabledProviders={mockUpdate}
+        {...providerManagementProps}
       />
     );
 
@@ -47,6 +60,7 @@ describe("ProviderActivationMenu", () => {
         disabledProviders={disabledProviders}
         profileId="test-profile"
         updateDisabledProviders={mockUpdate}
+        {...providerManagementProps}
       />
     );
 
@@ -76,6 +90,7 @@ describe("ProviderActivationMenu", () => {
         disabledProviders={disabledProviders}
         profileId="test-profile"
         updateDisabledProviders={mockUpdate}
+        {...providerManagementProps}
       />
     );
 
@@ -106,6 +121,7 @@ describe("ProviderActivationMenu", () => {
         disabledProviders={disabledProviders}
         profileId="test-profile"
         updateDisabledProviders={mockUpdate}
+        {...providerManagementProps}
       />
     );
 
@@ -137,6 +153,7 @@ describe("ProviderActivationMenu", () => {
         disabledProviders={disabledProviders}
         profileId="test-profile"
         updateDisabledProviders={mockUpdate}
+        {...providerManagementProps}
       />
     );
 
@@ -167,6 +184,7 @@ describe("ProviderActivationMenu", () => {
         disabledProviders={disabledProviders}
         profileId="test-profile"
         updateDisabledProviders={mockUpdate}
+        {...providerManagementProps}
       />
     );
 
@@ -192,16 +210,17 @@ describe("ProviderActivationMenu", () => {
         disabledProviders={disabledProviders}
         profileId="test-profile"
         updateDisabledProviders={mockUpdate}
+        {...providerManagementProps}
       />
     );
 
-    expect(screen.queryByText("Providers")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("providers-panel-dialog")).not.toBeInTheDocument();
 
     const button = screen.getByTestId("provider-activation-button");
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect(screen.getByText("Providers")).toBeInTheDocument();
+      expect(screen.getByTestId("providers-panel-dialog")).toBeInTheDocument();
     });
   });
 });

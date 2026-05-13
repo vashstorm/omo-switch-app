@@ -11,7 +11,6 @@ import { SyncReplaceToggle } from "./components/sync-replace/SyncReplaceToggle";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { ZoomControls } from "./components/ZoomControls";
 import { MiscEditor } from "./components/misc/MiscEditor";
-import { ProvidersEditor } from "./components/misc/ProvidersEditor";
 import { useProviders } from "./hooks/useProviders";
 import { AgentEditor } from "./components/agents/AgentEditor";
 import { CategoryEditor } from "./components/categories/CategoryEditor";
@@ -687,10 +686,6 @@ export function App() {
     return referenceImpactIndex.byModel[`${providerName}/${modelName}`] ?? [];
   }, [referenceImpactIndex]);
 
-  const effectiveMiscSectionNames = currentProfile?.effective?.misc
-    ? Object.keys(currentProfile.effective.misc as Record<string, unknown>).sort()
-    : [];
-
   const sharedMiscData = useMemo(() => {
     if (!currentProfile) return undefined;
     return currentProfile.rawMisc;
@@ -741,8 +736,7 @@ export function App() {
   }, []);
 
   const miscSectionNames = useMemo(() => {
-    const names = sharedMiscData ? Object.keys(sharedMiscData).sort() : [];
-    return [...names, "providers"];
+    return sharedMiscData ? Object.keys(sharedMiscData).sort() : [];
   }, [sharedMiscData]);
 
   return (
@@ -860,10 +854,23 @@ export function App() {
         onToggleMisc={() => setMiscCollapsed(c => !c)}
         onCreateAgent={handleCreateAgent}
         onCreateCategory={handleCreateCategory}
-        providerCatalog={providerCatalog}
-        disabledProviders={disabledProviders}
-        profileId={selectedProfileId ?? undefined}
-        updateDisabledProviders={updateDisabledProviders}
+        providerPanelProps={selectedProfileId ? {
+          providerCatalog,
+          disabledProviders,
+          profileId: selectedProfileId,
+          updateDisabledProviders,
+          providersList,
+          providersLoading,
+          providersError,
+          onCreateProvider: handleCreateProvider,
+          onCreateModel: handleCreateModel,
+          onUpdateModel: handleUpdateModel,
+          onDeleteModel: handleDeleteModel,
+          onDeleteProvider: handleDeleteProvider,
+          onReloadProviders: reloadProviders,
+          onGetProviderImpact: getProviderImpact,
+          onGetModelImpact: getModelImpact,
+        } : undefined}
         agentsSection={
           editableConfig ? (
             <AgentEditor
@@ -899,31 +906,16 @@ export function App() {
           )
         }
         miscSection={
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {editableConfig ? (
-              <MiscEditor
-                miscData={sharedMiscData}
-                globalCollapseKey={globalCollapseKey}
-                globalExpandKey={globalExpandKey}
-                expandTargetId={expandMiscTarget}
-              />
-            ) : (
-              <LoadingPanel variant="section" testId="loading-misc" />
-            )}
-            <ProvidersEditor
-              providersList={providersList}
-              loading={providersLoading}
-              error={providersError}
-              onCreateProvider={handleCreateProvider}
-              onCreateModel={handleCreateModel}
-              onUpdateModel={handleUpdateModel}
-              onDeleteModel={handleDeleteModel}
-              onDeleteProvider={handleDeleteProvider}
-              onReload={reloadProviders}
-              onGetProviderImpact={getProviderImpact}
-              onGetModelImpact={getModelImpact}
+          editableConfig ? (
+            <MiscEditor
+              miscData={sharedMiscData}
+              globalCollapseKey={globalCollapseKey}
+              globalExpandKey={globalExpandKey}
+              expandTargetId={expandMiscTarget}
             />
-          </Box>
+          ) : (
+            <LoadingPanel variant="section" testId="loading-misc" />
+          )
         }
         respectsMotion={respectsMotion}
         isSaving={isSaving}

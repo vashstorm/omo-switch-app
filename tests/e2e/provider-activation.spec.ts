@@ -20,11 +20,12 @@ function buildProfileDetail(disabledProviders: string[]) {
     const provider = modelId.split("/")[0];
     return !disabledProviders.includes(provider);
   });
+  const plannerAgent = filteredModels.length === 0 ? {} : { model: "openai/gpt-4o" };
 
   return {
-    baseline: { agents: {}, categories: {}, misc: {} },
-    editable: { agents: {}, categories: {}, misc: {} },
-    effective: { agents: {}, categories: {}, misc: {} },
+    baseline: { agents: { planner: plannerAgent }, categories: {}, misc: {} },
+    editable: { agents: { planner: plannerAgent }, categories: {}, misc: {} },
+    effective: { agents: { planner: plannerAgent }, categories: {}, misc: {} },
     readonlyTail: {},
     rawMisc: {},
     mtime: 1000,
@@ -51,16 +52,17 @@ test.describe("Provider Activation Lifecycle", () => {
     await page.route("**/api/profiles/profile-1", async (route) => {
       if (route.request().method() === "GET") {
         await route.fulfill({ json: profileDetail });
-      } else if (route.request().method() === "PUT") {
-        const url = route.request().url();
-        if (url.includes("/disabled-providers")) {
-          const body = await route.request().postDataJSON();
-          lastPutBody = body;
-          profileDetail = buildProfileDetail(body.disabledProviders);
-          await route.fulfill({ json: profileDetail });
-        } else {
-          await route.fulfill({ json: { success: true, mtime: 2000 } });
-        }
+      } else {
+        await route.fulfill({ json: { success: true, mtime: 2000 } });
+      }
+    });
+
+    await page.route("**/api/profiles/profile-1/disabled-providers", async (route) => {
+      if (route.request().method() === "PUT") {
+        const body = await route.request().postDataJSON();
+        lastPutBody = body;
+        profileDetail = buildProfileDetail(body.disabledProviders);
+        await route.fulfill({ json: profileDetail });
       } else {
         await route.continue();
       }
@@ -141,16 +143,17 @@ test.describe("Provider Activation Lifecycle", () => {
     await page.route("**/api/profiles/profile-1", async (route) => {
       if (route.request().method() === "GET") {
         await route.fulfill({ json: profileDetail });
-      } else if (route.request().method() === "PUT") {
-        const url = route.request().url();
-        if (url.includes("/disabled-providers")) {
-          const body = await route.request().postDataJSON();
-          lastPutBody = body;
-          profileDetail = buildProfileDetail(body.disabledProviders);
-          await route.fulfill({ json: profileDetail });
-        } else {
-          await route.fulfill({ json: { success: true, mtime: 2000 } });
-        }
+      } else {
+        await route.fulfill({ json: { success: true, mtime: 2000 } });
+      }
+    });
+
+    await page.route("**/api/profiles/profile-1/disabled-providers", async (route) => {
+      if (route.request().method() === "PUT") {
+        const body = await route.request().postDataJSON();
+        lastPutBody = body;
+        profileDetail = buildProfileDetail(body.disabledProviders);
+        await route.fulfill({ json: profileDetail });
       } else {
         await route.continue();
       }

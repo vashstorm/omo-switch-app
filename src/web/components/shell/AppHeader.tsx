@@ -11,7 +11,7 @@ import { keyframes } from "@mui/system";
 import { DURATIONS, EASING } from "../../theme/motionTokens";
 import { lightTokens, darkTokens } from "../../theme/designTokens";
 import { StatusPill } from "../common/StatusPill";
-import { ProviderActivationMenu } from "../providers/ProviderActivationMenu";
+import { ProviderActivationMenu, type ProviderActivationMenuProps } from "../providers/ProviderActivationMenu";
 
 const spin = keyframes({
   from: { transform: "rotate(0deg)" },
@@ -46,10 +46,7 @@ interface AppHeaderProps {
   categoryModelMap: Record<string, string | undefined>;
   isSaving?: boolean;
   saveSuccess?: boolean;
-  providerCatalog?: string[];
-  disabledProviders?: string[];
-  profileId?: string;
-  updateDisabledProviders?: (profileId: string, disabledProviders: string[]) => void;
+  providerPanelProps?: ProviderActivationMenuProps;
 }
 
 export function AppHeader({
@@ -75,10 +72,7 @@ export function AppHeader({
   isSaving = false,
   saveSuccess = false,
   isMobile = false,
-  providerCatalog,
-  disabledProviders,
-  profileId,
-  updateDisabledProviders,
+  providerPanelProps,
 }: AppHeaderProps) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -167,14 +161,7 @@ export function AppHeader({
                   )}
                 </IconButton>
               </Tooltip>
-              {providerCatalog && updateDisabledProviders && profileId && (
-                <ProviderActivationMenu
-                  providerCatalog={providerCatalog}
-                  disabledProviders={disabledProviders ?? []}
-                  profileId={profileId}
-                  updateDisabledProviders={updateDisabledProviders}
-                />
-              )}
+              {providerPanelProps && <ProviderActivationMenu {...providerPanelProps} />}
             </Box>
           </Box>
 
