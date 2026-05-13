@@ -399,6 +399,47 @@ describe("config writer", () => {
     expect(data.agents.planner.ultrawork.variant).toBe("low");
   });
 
+  it("omits ultrawork when payload marks it disabled", async () => {
+    const initialContent = `{
+  "agents": {
+    "sisyphus": {
+      "model": "anthropic/claude",
+      "ultrawork": {
+        "model": "openai/gpt-5",
+        "variant": "medium"
+      }
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload: EditableConfig = {
+      agents: {
+        sisyphus: {
+          model: "anthropic/claude",
+          ultrawork: null,
+        },
+      },
+      categories: {},
+      misc: {},
+    };
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.sisyphus.ultrawork).toBeUndefined();
+    expect(saved).not.toContain('"ultrawork": null');
+  });
+
   it("handles null in unmanaged fields", async () => {
     const initialContent = `{
   "agents": {

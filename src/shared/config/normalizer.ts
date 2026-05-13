@@ -51,14 +51,14 @@ export function validateAgentField(
   if (field === "variant" && value !== undefined) {
     const result = VariantSchema.safeParse(value);
     if (!result.success) {
-      loggers.sharedConfigNormalizer.warn(
-        { operation: "config.normalize_invalid_field", path: `agents.${agentName}.variant`, value, expected: "low|medium|high" },
-        "Invalid variant value"
-      );
-      return {
-        path: `agents.${agentName}.variant`,
-        message: `Invalid variant value "${value}". Must be one of: low, medium, high`,
-      };
+        loggers.sharedConfigNormalizer.warn(
+          { operation: "config.normalize_invalid_field", path: `agents.${agentName}.variant`, value, expected: "low|medium|high|xhigh|max" },
+          "Invalid variant value"
+        );
+        return {
+          path: `agents.${agentName}.variant`,
+          message: `Invalid variant value "${value}". Must be one of: low, medium, high, xhigh, max`,
+        };
     }
   }
 
@@ -76,7 +76,7 @@ export function validateAgentField(
     }
   }
 
-  if (field === "ultrawork" && value !== undefined && typeof value === "object") {
+  if (field === "ultrawork" && value !== undefined && value !== null && typeof value === "object") {
     const ultraworkErrors = validateUltraworkField(agentName, value as Record<string, unknown>);
     return ultraworkErrors.length > 0 ? ultraworkErrors[0] : null;
   }
@@ -95,12 +95,12 @@ function validateUltraworkField(
       const result = VariantSchema.safeParse(value);
       if (!result.success) {
         loggers.sharedConfigNormalizer.warn(
-          { operation: "config.normalize_invalid_field", path: `agents.${agentName}.ultrawork.variant`, value, expected: "low|medium|high" },
+          { operation: "config.normalize_invalid_field", path: `agents.${agentName}.ultrawork.variant`, value, expected: "low|medium|high|xhigh|max" },
           "Invalid ultrawork variant value"
         );
         errors.push({
           path: `agents.${agentName}.ultrawork.variant`,
-          message: `Invalid ultrawork variant value "${value}". Must be one of: low, medium, high`,
+          message: `Invalid ultrawork variant value "${value}". Must be one of: low, medium, high, xhigh, max`,
         });
       }
     }
@@ -132,12 +132,12 @@ export function validateCategoryField(
     const result = VariantSchema.safeParse(value);
     if (!result.success) {
       loggers.sharedConfigNormalizer.warn(
-        { operation: "config.normalize_invalid_field", path: `categories.${categoryName}.variant`, value, expected: "low|medium|high" },
+        { operation: "config.normalize_invalid_field", path: `categories.${categoryName}.variant`, value, expected: "low|medium|high|xhigh|max" },
         "Invalid category variant value"
       );
       return {
         path: `categories.${categoryName}.variant`,
-        message: `Invalid variant value "${value}". Must be one of: low, medium, high`,
+        message: `Invalid variant value "${value}". Must be one of: low, medium, high, xhigh, max`,
       };
     }
   }
@@ -310,7 +310,9 @@ export function extractEditableAgentFields(
     if (error) {
       errors.push(error);
     } else {
-      if (key === "ultrawork" && value && typeof value === "object") {
+      if (key === "ultrawork" && value === null) {
+        (editable as Record<string, unknown>)[key] = null;
+      } else if (key === "ultrawork" && value && typeof value === "object") {
         const ultraworkConfig = normalizeUltraworkConfig(value, agentName, errors);
         if (ultraworkConfig && Object.keys(ultraworkConfig).length > 0) {
           (editable as Record<string, unknown>)[key] = ultraworkConfig;
@@ -466,7 +468,7 @@ export function extractReadonlyTail(
 
 export function mergeEffective(
   baseline: { agents: Record<string, AgentConfig>; categories: Record<string, CategoryConfig>; misc: MiscConfig },
-  editable: { agents: Record<string, Partial<AgentConfig>>; categories: Record<string, Partial<CategoryConfig>>; misc: Partial<MiscConfig> },
+  editable: { agents: Record<string, Partial<AgentConfig> | null>; categories: Record<string, Partial<CategoryConfig> | null>; misc: Partial<MiscConfig> },
 ): { agents: Record<string, AgentConfig>; categories: Record<string, CategoryConfig>; misc: MiscConfig } {
   const effective = {
     agents: { ...baseline.agents },
@@ -475,6 +477,11 @@ export function mergeEffective(
   };
 
   for (const [agentName, editableAgent] of Object.entries(editable.agents)) {
+    if (editableAgent === null) {
+      delete effective.agents[agentName];
+      continue;
+    }
+
     if (effective.agents[agentName]) {
       effective.agents[agentName] = {
         ...effective.agents[agentName],
@@ -486,11 +493,20 @@ export function mergeEffective(
       };
       effective.agents[agentName] = fullConfig;
     }
+
+    if (editableAgent.ultrawork === null) {
+      delete effective.agents[agentName].ultrawork;
+    }
   }
 
   for (const [categoryName, editableCategory] of Object.entries(
     editable.categories,
   )) {
+    if (editableCategory === null) {
+      delete effective.categories[categoryName];
+      continue;
+    }
+
     if (effective.categories[categoryName]) {
       effective.categories[categoryName] = {
         ...effective.categories[categoryName],

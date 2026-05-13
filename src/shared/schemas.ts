@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const VariantSchema = z.enum(["low", "medium", "high"]);
+export const VariantSchema = z.enum(["low", "medium", "high", "xhigh", "max"]);
 
 export const TemperatureSchema = z.number().min(0).max(1);
 
@@ -16,7 +16,7 @@ export const AgentConfigSchema = z.object({
   temperature: TemperatureSchema.optional(),
   prompt_append: z.string().optional(),
   fallback_models: z.array(z.string()).optional(),
-  ultrawork: UltraworkConfigSchema.optional(),
+  ultrawork: UltraworkConfigSchema.nullable().optional(),
   maxTokens: z.number().int().positive().optional(),
   category: z.string().optional(),
 });
@@ -61,6 +61,7 @@ export const EditableAgentPayloadSchema = z.object({
   temperature: TemperatureSchema.optional(),
   prompt_append: z.string().optional(),
   fallback_models: z.array(z.string()).optional(),
+  ultrawork: UltraworkConfigSchema.nullable().optional(),
   maxTokens: z.number().int().positive().optional(),
   category: z.string().optional(),
 });

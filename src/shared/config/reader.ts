@@ -154,6 +154,10 @@ function buildEditable(
   if (ohMyData.agents && typeof ohMyData.agents === "object") {
     for (const [agentName, rawAgent] of Object.entries(ohMyData.agents)) {
       if (agentName === "$schema") continue;
+      if (rawAgent === null) {
+        editable.agents[agentName] = null;
+        continue;
+      }
       const extracted = extractEditableAgentFields(rawAgent, agentName, errors);
       if (Object.keys(extracted).length > 0) {
         editable.agents[agentName] = extracted;
@@ -166,6 +170,10 @@ function buildEditable(
       ohMyData.categories,
     )) {
       if (categoryName === "$schema") continue;
+      if (rawCategory === null) {
+        editable.categories[categoryName] = null;
+        continue;
+      }
       const extracted = extractEditableCategoryFields(
         rawCategory,
         categoryName,

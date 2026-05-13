@@ -1,7 +1,7 @@
 //! JSONC lossless read/write with path-based edit parity.
 
 use crate::errors::AppError;
-use jsonc_parser::cst::{CstInputValue, CstObject, CstRootNode};
+use jsonc_parser::cst::{CstInputValue, CstObject, CstObjectProp, CstRootNode, TrailingCommaMode};
 use jsonc_parser::{json, ParseOptions};
 use serde_json::Value;
 use std::fs;
@@ -84,8 +84,10 @@ fn apply_value_at_key(obj: &CstObject, key: &str, value: Option<&Value>) -> Resu
         Some(v) => {
             if let Some(prop) = obj.get(key) {
                 prop.set_value(value_to_cst_input(v));
+                remove_generated_trailing_commas(&prop);
             } else {
-                obj.append(key, value_to_cst_input(v));
+                let prop = obj.append(key, value_to_cst_input(v));
+                remove_generated_trailing_commas(&prop);
             }
         }
         None => {
@@ -95,6 +97,18 @@ fn apply_value_at_key(obj: &CstObject, key: &str, value: Option<&Value>) -> Resu
         }
     }
     Ok(())
+}
+
+fn remove_generated_trailing_commas(prop: &CstObjectProp) {
+    let Some(value) = prop.value() else {
+        return;
+    };
+
+    if let Some(object) = value.as_object() {
+        object.set_trailing_commas(TrailingCommaMode::Never);
+    } else if let Some(array) = value.as_array() {
+        array.set_trailing_commas(TrailingCommaMode::Never);
+    }
 }
 
 fn value_to_cst_input(value: &Value) -> CstInputValue {
@@ -567,5 +581,33 @@ mod tests {
         let result = jsonc_modify(content, &["key"], Some(&json!("new-value"))).unwrap();
         assert!(result.contains("// inline comment"));
         assert!(result.contains("\"key\": \"new-value\""));
+    }
+
+    #[test]
+    fn test_append_object_after_trailing_comments_without_trailing_comma() {
+        let content = r#"{
+  "agents": {
+    "sisyphus": {
+      "model": "aigo-codexx/gpt-5.3-codex",
+      "temperature": 0.1,
+      "prompt_append": "x",
+      // "model": "alibaba-coding-plan-cn/glm-5",
+      // "model": "cube-clause/claude-sonnet-4-6",
+      // "model": "aigo-claude/claude-sonnet-4-6"
+    }
+  }
+}"#;
+
+        let result = jsonc_modify(
+            content,
+            &["agents", "sisyphus", "ultrawork"],
+            Some(&json!({
+                "model": "openai/gpt-5",
+                "variant": "medium"
+            })),
+        )
+        .unwrap();
+
+        assert!(!result.contains("\"variant\": \"medium\",\n"));
     }
 }

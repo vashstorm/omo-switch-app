@@ -20,7 +20,7 @@ export interface AgentConfig {
   temperature?: number;
   prompt_append?: string;
   fallback_models?: string[];
-  ultrawork?: UltraworkConfig;
+  ultrawork?: UltraworkConfig | null;
   maxTokens?: number;
   category?: string;
   [key: string]: unknown;

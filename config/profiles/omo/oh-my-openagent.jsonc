@@ -12,13 +12,12 @@
       "temperature": 0.1,
       // "maxTokens": 64000,
       "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",
+      "ultrawork": {
+        "variant": "high",
+      },
       // "model": "alibaba-coding-plan-cn/glm-5",
       // "model": "cube-clause/claude-sonnet-4-6",
-      // "model": "aigo-claude/claude-sonnet-4-6",
-      "ultrawork": {
-        "model": null,
-        "variant": "medium"
-      }
+      // "model": "aigo-claude/claude-sonnet-4-6"
     },
     "sisyphus-junior": {
       "prompt_append": "你必须用流利的中文回答所有问题，思考、计划、输出全部用中文，除了代码。",

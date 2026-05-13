@@ -7,12 +7,13 @@ use crate::contracts::{
     AgentConfig, BaselineConfig, CategoryConfig, ConfigFieldError, CopyProfileRequest,
     CopyProfileResponse, EditableConfig, EffectiveConfig, ListProfilesResponse, MiscConfig,
     ModelGroup, ModelOption, ProfileConfigResult, ProfileItem, ReadonlyTailConfig,
-    SaveProfileRequest, SaveProfileResponse, UpdateDisabledProvidersRequest,
+    SaveProfileRequest, SaveProfileResponse, UltraworkField, UpdateDisabledProvidersRequest,
 };
 use crate::errors::AppError;
 use crate::jsonc_edit::{jsonc_modify, jsonc_read, read_jsonc_file, write_jsonc_file};
 use crate::paths::AppPaths;
 use indexmap::IndexMap;
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
@@ -445,7 +446,7 @@ fn normalize_agent_config(raw: &Value, _errors: &mut Vec<ConfigFieldError>) -> O
         if let Some(value) = raw_obj.get(*key) {
             if *key == "variant" {
                 if let Some(variant_str) = value.as_str() {
-                    if variant_str != "low" && variant_str != "medium" && variant_str != "high" {
+                    if variant_str != "low" && variant_str != "medium" && variant_str != "high" && variant_str != "xhigh" && variant_str != "max" {
                         continue;
                     }
                 }
@@ -480,7 +481,7 @@ fn normalize_category_config(
         if let Some(value) = raw_obj.get(*key) {
             if *key == "variant" {
                 if let Some(variant_str) = value.as_str() {
-                    if variant_str != "low" && variant_str != "medium" && variant_str != "high" {
+                    if variant_str != "low" && variant_str != "medium" && variant_str != "high" && variant_str != "xhigh" && variant_str != "max" {
                         continue;
                     }
                 }
@@ -690,7 +691,11 @@ fn merge_effective(baseline: &BaselineConfig, editable: &EditableConfig) -> Effe
                     agents.insert(agent_name.clone(), merged);
                 } else {
                     // New agent
-                    agents.insert(agent_name.clone(), config.clone());
+                    let mut next = config.clone();
+                    if matches!(next.ultrawork, UltraworkField::Disabled) {
+                        next.ultrawork = UltraworkField::Missing;
+                    }
+                    agents.insert(agent_name.clone(), next);
                 }
             }
             None => {
@@ -748,7 +753,11 @@ fn merge_agent_configs(baseline: &AgentConfig, editable: &AgentConfig) -> AgentC
             .fallback_models
             .clone()
             .or(baseline.fallback_models.clone()),
-        ultrawork: editable.ultrawork.clone().or(baseline.ultrawork.clone()),
+        ultrawork: match &editable.ultrawork {
+            UltraworkField::Config(_) => editable.ultrawork.clone(),
+            UltraworkField::Disabled => UltraworkField::Missing,
+            UltraworkField::Missing => baseline.ultrawork.clone(),
+        },
         max_tokens: editable.max_tokens.or(baseline.max_tokens),
         category: editable.category.clone().or(baseline.category.clone()),
     }
@@ -1052,10 +1061,10 @@ fn get_profile_internal(
 }
 
 /// Save profile config with mtime conflict check.
-fn save_profile_internal(
+fn save_profile_internal<T: Serialize>(
     paths: &AppPaths,
     profile_id: &str,
-    payload: &EditableConfig,
+    payload: &T,
     expected_mtime: u64,
 ) -> Result<SaveProfileResponse, AppError> {
     let (global_config, config_path) = read_global_config_with_root(paths)?;
@@ -1751,6 +1760,51 @@ mod tests {
             result.effective.agents.get("build").unwrap().variant,
             Some("low".to_string())
         ); // inherited from baseline
+    }
+
+    #[test]
+    fn test_get_profile_ultrawork_null_disables_baseline() {
+        let temp = TempDir::new().unwrap();
+        let paths = create_test_paths(&temp);
+
+        create_global_config(&paths.config_file, None);
+
+        let profiles_root = paths.resolve_profiles_root(None);
+        fs::create_dir_all(&profiles_root).unwrap();
+
+        create_profile(
+            &profiles_root,
+            "test",
+            r#"{
+      "agents": {
+        "sisyphus": {
+          "model": "anthropic/claude",
+          "ultrawork": { "model": "openai/gpt-5", "variant": "medium" }
+        }
+      }
+    }"#,
+            Some(
+                r#"{
+      "agents": {
+        "sisyphus": {
+          "ultrawork": null
+        }
+      }
+    }"#,
+            ),
+        );
+
+        let result = get_profile_internal(&paths, "test").unwrap();
+        let editable = result
+            .editable
+            .agents
+            .get("sisyphus")
+            .and_then(|agent| agent.as_ref())
+            .unwrap();
+        let effective = result.effective.agents.get("sisyphus").unwrap();
+
+        assert!(matches!(editable.ultrawork, UltraworkField::Disabled));
+        assert!(matches!(effective.ultrawork, UltraworkField::Missing));
     }
 
     #[test]
@@ -2551,7 +2605,7 @@ mod tests {
                 temperature: None,
                 prompt_append: None,
                 fallback_models: None,
-                ultrawork: None,
+                ultrawork: UltraworkField::Missing,
                 max_tokens: None,
                 category: None,
             }),
@@ -2628,7 +2682,7 @@ mod tests {
                 temperature: None,
                 prompt_append: None,
                 fallback_models: None,
-                ultrawork: Some(crate::contracts::UltraworkConfig {
+                ultrawork: UltraworkField::Config(crate::contracts::UltraworkConfig {
                     model: Some("new-model".to_string()),
                     variant: Some("medium".to_string()),
                     prompt_append: None,
@@ -2659,6 +2713,57 @@ mod tests {
         assert_eq!(ultrawork.get("variant").unwrap(), "medium");
         assert!(!ultrawork.contains_key("prompt_append"));
         assert!(!saved_content.contains("\"prompt_append\": null"));
+    }
+
+    #[test]
+    fn test_save_profile_omits_ultrawork_null_disable() {
+        let temp = TempDir::new().unwrap();
+        let paths = create_test_paths(&temp);
+
+        create_global_config(&paths.config_file, None);
+
+        let profiles_root = paths.resolve_profiles_root(None);
+        fs::create_dir_all(&profiles_root).unwrap();
+
+        let initial_content = r#"{
+  "agents": {
+    "sisyphus": {
+      "model": "anthropic/claude",
+      "ultrawork": {
+        "model": "old-model",
+        "variant": "low"
+      }
+    }
+  }
+}"#;
+        create_profile(
+            &profiles_root,
+            "test",
+            r#"{ "agents": {} }"#,
+            Some(initial_content),
+        );
+
+        let oh_my_path = profiles_root.join("test/oh-my-openagent.jsonc");
+        let current_mtime = get_mtime_ms(&oh_my_path);
+        let payload = json!({
+            "agents": {
+                "sisyphus": {
+                    "model": "anthropic/claude",
+                    "ultrawork": null
+                }
+            },
+            "categories": {},
+            "misc": {}
+        });
+
+        save_profile_internal(&paths, "test", &payload, current_mtime).unwrap();
+
+        let saved_content = fs::read_to_string(&oh_my_path).unwrap();
+        let saved_value = jsonc_read(&saved_content).unwrap();
+
+        let saved_agent = saved_value["agents"]["sisyphus"].as_object().unwrap();
+        assert!(!saved_agent.contains_key("ultrawork"));
+        assert!(!saved_content.contains("\"ultrawork\": null"));
     }
 
     #[test]
@@ -2706,7 +2811,7 @@ mod tests {
                 temperature: None,
                 prompt_append: None,
                 fallback_models: None,
-                ultrawork: None,
+                ultrawork: UltraworkField::Missing,
                 max_tokens: None,
                 category: None,
             }),
@@ -2803,7 +2908,7 @@ mod tests {
                 temperature: None,
                 prompt_append: None,
                 fallback_models: None,
-                ultrawork: None,
+                ultrawork: UltraworkField::Missing,
                 max_tokens: None,
                 category: None,
             }),

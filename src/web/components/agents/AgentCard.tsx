@@ -112,12 +112,12 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
   };
 
   const handleRemoveUltrawork = () => {
-    handleChange("ultrawork", undefined);
+    onChange({ ...agent, ultrawork: null });
   };
 
   const theme = useTheme();
   const agentColor = (theme as any).sectionColors?.agent ?? "#0071e3";
-  const hasUltrawork = agent.ultrawork !== undefined;
+  const hasUltrawork = agent.ultrawork != null;
   const isSisyphus = id === "sisyphus";
   const isSisyphusJunior = id === "sisyphus-junior";
 
@@ -332,14 +332,16 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                      }}
                    >
                         <MenuItem value="" sx={{ fontSize: "0.8rem", fontStyle: "normal" }}>Default</MenuItem>
-                       <MenuItem value="low">low</MenuItem>
-                       <MenuItem value="medium">medium</MenuItem>
-                       <MenuItem value="high">high</MenuItem>
-                   </Select>
-                 </FormControl>
+                        <MenuItem value="low">low</MenuItem>
+                        <MenuItem value="medium">medium</MenuItem>
+                        <MenuItem value="high">high</MenuItem>
+                        <MenuItem value="xhigh">xhigh</MenuItem>
+                        <MenuItem value="max">max</MenuItem>
+                    </Select>
+                  </FormControl>
 
-                 <TextField
-                   id={`agent-temperature-${id}`}
+                  <TextField
+                    id={`agent-temperature-${id}`}
                    label="Temperature"
                    type="number"
                    size="small"
@@ -650,6 +652,8 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                           <MenuItem value="low" sx={{ fontSize: "0.8rem" }}>low</MenuItem>
                           <MenuItem value="medium" sx={{ fontSize: "0.8rem" }}>medium</MenuItem>
                           <MenuItem value="high" sx={{ fontSize: "0.8rem" }}>high</MenuItem>
+                          <MenuItem value="xhigh" sx={{ fontSize: "0.8rem" }}>xhigh</MenuItem>
+                          <MenuItem value="max" sx={{ fontSize: "0.8rem" }}>max</MenuItem>
                         </Select>
                       </FormControl>
                     </Box>

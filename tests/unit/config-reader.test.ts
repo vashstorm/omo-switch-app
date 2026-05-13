@@ -40,9 +40,9 @@ describe("config reader", () => {
 
     // Verify editable from oh-my-opencode.jsonc
     expect(result.editable.agents).toHaveProperty("planner");
-    expect(result.editable.agents.planner.model).toBe("gpt-5-mini");
-    expect(result.editable.agents.planner.variant).toBe("low");
-    expect(result.editable.agents.planner.temperature).toBe(0.1);
+    expect(result.editable.agents.planner!.model).toBe("gpt-5-mini");
+    expect(result.editable.agents.planner!.variant).toBe("low");
+    expect(result.editable.agents.planner!.temperature).toBe(0.1);
 
     // Verify effective is merged correctly
     expect(result.effective.agents.planner.model).toBe("gpt-5-mini");
@@ -74,6 +74,50 @@ describe("config reader", () => {
     expect(result.editable.categories).toEqual({});
     expect(result.editable.misc).toEqual({});
     expect(result.effective.agents.planner.model).toBe("gpt-5");
+  });
+
+  test("treats editable ultrawork null as explicit disable", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omo-switch-reader-ultrawork-"));
+    try {
+      const opencodePath = path.join(tempDir, "opencode.jsonc");
+      const ohMyOpencodePath = path.join(tempDir, "oh-my-openagent.jsonc");
+
+      await fs.writeFile(
+        opencodePath,
+        JSON.stringify({
+          agents: {
+            sisyphus: {
+              model: "anthropic/claude",
+              ultrawork: { model: "openai/gpt-5", variant: "medium" },
+            },
+          },
+        }),
+        "utf-8",
+      );
+      await fs.writeFile(
+        ohMyOpencodePath,
+        JSON.stringify({
+          agents: {
+            sisyphus: {
+              ultrawork: null,
+            },
+          },
+        }),
+        "utf-8",
+      );
+
+      const result = await readProfileConfig({
+        id: "test",
+        label: "Test Profile",
+        opencodePath,
+        ohMyOpencodePath,
+      });
+
+      expect(result.editable.agents.sisyphus!.ultrawork).toBeNull();
+      expect(result.effective.agents.sisyphus.ultrawork).toBeUndefined();
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   test("normalizes agent fields correctly", async () => {
@@ -130,7 +174,7 @@ describe("config reader", () => {
     expect(baselineBackend.fallback_models).toEqual(["gpt-3.5-turbo"]);
 
     // Editable should have overrides
-    expect(result.editable.categories.backend.model).toBe("gpt-4-turbo");
+    expect(result.editable.categories.backend!.model).toBe("gpt-4-turbo");
 
     // Effective should merge
     expect(result.effective.categories.backend.model).toBe("gpt-4-turbo");

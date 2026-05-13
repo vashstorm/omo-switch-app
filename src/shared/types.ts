@@ -1,4 +1,4 @@
-export type Variant = "low" | "medium" | "high";
+export type Variant = "low" | "medium" | "high" | "xhigh" | "max";
 
 export type Temperature = number;
 
@@ -14,7 +14,7 @@ export interface AgentConfig {
   temperature?: Temperature;
   prompt_append?: string;
   fallback_models?: string[];
-  ultrawork?: UltraworkConfig;
+  ultrawork?: UltraworkConfig | null;
   maxTokens?: number;
   category?: string;
 }
@@ -80,6 +80,7 @@ export interface EditableAgentPayload {
   temperature?: Temperature;
   prompt_append?: string;
   fallback_models?: string[];
+  ultrawork?: UltraworkConfig | null;
   maxTokens?: number;
   category?: string;
 }

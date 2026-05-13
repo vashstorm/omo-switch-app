@@ -257,6 +257,8 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
                     <MenuItem value="low" sx={{ fontSize: "0.8rem" }}>low</MenuItem>
                     <MenuItem value="medium" sx={{ fontSize: "0.8rem" }}>medium</MenuItem>
                     <MenuItem value="high" sx={{ fontSize: "0.8rem" }}>high</MenuItem>
+                    <MenuItem value="xhigh" sx={{ fontSize: "0.8rem" }}>xhigh</MenuItem>
+                    <MenuItem value="max" sx={{ fontSize: "0.8rem" }}>max</MenuItem>
                   </Select>
                 </FormControl>
 

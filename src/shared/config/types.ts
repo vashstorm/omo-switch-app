@@ -16,8 +16,8 @@ export interface BaselineConfig {
 }
 
 export interface EditableConfig {
-  agents: Record<string, Partial<AgentConfig>>;
-  categories: Record<string, Partial<CategoryConfig>>;
+  agents: Record<string, Partial<AgentConfig> | null>;
+  categories: Record<string, Partial<CategoryConfig> | null>;
   misc: Partial<MiscConfig>;
 }
 

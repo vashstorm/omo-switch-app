@@ -4,7 +4,7 @@
 //! the Rust backend and TypeScript frontend via Tauri's invoke API.
 
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -39,6 +39,54 @@ pub struct UltraworkConfig {
     pub prompt_append: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum UltraworkField {
+    Missing,
+    Disabled,
+    Config(UltraworkConfig),
+}
+
+impl Default for UltraworkField {
+    fn default() -> Self {
+        Self::Missing
+    }
+}
+
+impl UltraworkField {
+    pub fn is_missing(&self) -> bool {
+        matches!(self, Self::Missing)
+    }
+
+    pub fn as_config(&self) -> Option<&UltraworkConfig> {
+        match self {
+            Self::Config(config) => Some(config),
+            Self::Missing | Self::Disabled => None,
+        }
+    }
+}
+
+impl Serialize for UltraworkField {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Missing | Self::Disabled => serializer.serialize_none(),
+            Self::Config(config) => config.serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for UltraworkField {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Option::<UltraworkConfig>::deserialize(deserializer)
+            .map(|value| value.map(Self::Config).unwrap_or(Self::Disabled))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentConfig {
     pub model: Option<String>,
@@ -47,7 +95,8 @@ pub struct AgentConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_append: Option<String>,
     pub fallback_models: Option<Vec<String>>,
-    pub ultrawork: Option<UltraworkConfig>,
+    #[serde(default, skip_serializing_if = "UltraworkField::is_missing")]
+    pub ultrawork: UltraworkField,
     #[serde(rename = "maxTokens", alias = "max_tokens")]
     pub max_tokens: Option<u32>,
     pub category: Option<String>,
@@ -150,7 +199,7 @@ pub struct ProfileConfigResult {
 #[serde(rename_all = "camelCase")]
 pub struct SaveProfileRequest {
     pub profile_id: String,
-    pub payload: EditableConfig,
+    pub payload: serde_json::Value,
     pub expected_mtime: u64,
 }
 
@@ -531,7 +580,7 @@ mod tests {
             temperature: None,
             prompt_append: Some("Be concise".to_string()),
             fallback_models: Some(vec!["openai/gpt-5".to_string()]),
-            ultrawork: None,
+            ultrawork: UltraworkField::Missing,
             max_tokens: Some(64000),
             category: None,
         };
@@ -562,7 +611,7 @@ mod tests {
             temperature: None,
             prompt_append: None,
             fallback_models: None,
-            ultrawork: Some(UltraworkConfig {
+            ultrawork: UltraworkField::Config(UltraworkConfig {
                 model: Some("openai/gpt-5".to_string()),
                 variant: Some("medium".to_string()),
                 prompt_append: None,
