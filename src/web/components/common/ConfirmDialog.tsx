@@ -65,6 +65,7 @@ export function ConfirmDialog({
       </Box>}
       onClose={onCancel}
       maxWidth="xs"
+      titleTestId="confirm-dialog-title"
       actions={
         <>
           <Button
@@ -85,7 +86,9 @@ export function ConfirmDialog({
         </>
       }
     >
-      <DialogContentText>{description}</DialogContentText>
+      <DialogContentText data-testid="confirm-dialog-description">
+        {description}
+      </DialogContentText>
     </DialogFrame>
   );
 }

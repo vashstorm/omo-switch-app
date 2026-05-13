@@ -28,6 +28,10 @@ function homeDir(): string {
   return process.env.HOME || process.env.USERPROFILE || os.homedir();
 }
 
+function repoConfigPath(): string {
+  return path.resolve("config/config.jsonc");
+}
+
 describe("resolveGlobalConfigPath", () => {
   it("expands home-relative explicit config path", () => {
     expect(resolveGlobalConfigPath("~/Library/Application Support/com.omo-switch.app/config.jsonc")).toBe(
@@ -69,7 +73,7 @@ describe("readGlobalConfig", () => {
   });
 
   it("returns parsed config from actual config/config.jsonc", async () => {
-    const result = await readGlobalConfig();
+    const result = await readGlobalConfig(repoConfigPath());
     expect(result).toHaveProperty("config_path");
     expect(result).toHaveProperty("providers");
   });
@@ -131,7 +135,7 @@ describe("extractGlobalModels", () => {
   });
 
   it("extracts models from actual config/config.jsonc", async () => {
-    const gc = await readGlobalConfig();
+    const gc = await readGlobalConfig(repoConfigPath());
     const models = extractGlobalModels(gc);
     expect(models.length).toBeGreaterThan(0);
     expect(models).toContain("openai/gpt-5.4");

@@ -26,6 +26,7 @@ interface DialogFrameProps {
   fullWidth?: boolean;
   actions?: React.ReactNode;
   testId?: string;
+  titleTestId?: string;
   closeTestId?: string;
   borderColor?: string;
   closeAriaLabel?: string;
@@ -43,6 +44,7 @@ export function DialogFrame({
   fullWidth = true,
   actions,
   testId,
+  titleTestId,
   closeTestId,
   borderColor,
   closeAriaLabel = "Close",
@@ -122,6 +124,7 @@ export function DialogFrame({
             <Box sx={{ flex: 1 }}>
               <Typography
                 component="div"
+                data-testid={titleTestId}
                 sx={{
                   fontFamily: DISPLAY_FONT,
                   fontWeight: 700,

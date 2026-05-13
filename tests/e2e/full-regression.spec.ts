@@ -1,4 +1,14 @@
 import { test, expect } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+async function selectAgentVariant(page: Page, agentId: string, variant: string) {
+  await page.getByTestId(`agent-variant-${agentId}`).click();
+  await page.getByRole("option", { name: variant || "Default" }).click();
+}
+
+async function expectAgentVariant(page: Page, agentId: string, variant: string) {
+  await expect(page.getByTestId(`agent-variant-${agentId}`)).toContainText(variant || "Default");
+}
 
 test.describe("Full Regression Suite", () => {
   const profileADetail = {
@@ -96,10 +106,10 @@ test.describe("Full Regression Suite", () => {
     await expect(page.getByTestId("agent-editor")).toBeVisible();
 
     const modelSelectA = page.getByTestId("agent-model-planner");
-    await expect(modelSelectA).toHaveValue("gpt-4");
+    await expect(modelSelectA).toContainText("gpt-4");
 
-    const variantSelectA = page.getByTestId("agent-variant-planner");
-    await variantSelectA.selectOption("medium");
+    await selectAgentVariant(page, "planner", "medium");
+    await page.getByTestId("agent-prompt-planner").fill("profile A local edit");
 
     const saveButton = page.getByTestId("save-button");
     await expect(saveButton).toBeEnabled();
@@ -116,9 +126,8 @@ test.describe("Full Regression Suite", () => {
     await expect(page.getByTestId("agent-editor")).toBeVisible();
 
     const modelSelectB = page.getByTestId("agent-model-planner");
-    await expect(modelSelectB).toHaveValue("claude-3");
-    const variantSelectB = page.getByTestId("agent-variant-planner");
-    await expect(variantSelectB).toHaveValue("high");
+    await expect(modelSelectB).toContainText("claude-3");
+    await expectAgentVariant(page, "planner", "high");
 
     await profileSelector.click();
     await page.getByTestId("profile-option-profile-a").click();
@@ -178,8 +187,7 @@ test.describe("Full Regression Suite", () => {
     await page.goto("/");
     await expect(page.getByTestId("agent-editor")).toBeVisible();
 
-    const variantSelect = page.getByTestId("agent-variant-planner");
-    await variantSelect.selectOption("");
+    await selectAgentVariant(page, "planner", "");
 
     const temperatureInput = page.getByTestId("agent-temperature-planner");
     await temperatureInput.fill("");
@@ -215,15 +223,14 @@ test.describe("Full Regression Suite", () => {
     await page.goto("/");
     await expect(page.getByTestId("agent-editor")).toBeVisible();
 
-    const variantSelect = page.getByTestId("agent-variant-planner");
-    await variantSelect.selectOption("high");
+    await selectAgentVariant(page, "planner", "high");
 
     const saveButton = page.getByTestId("save-button");
     await saveButton.click();
 
     await expect(page.getByTestId("conflict-banner")).toBeVisible();
     const conflictBanner = page.getByTestId("conflict-banner");
-    await expect(conflictBanner).toContainText("CONFLICT");
+    await expect(conflictBanner).toContainText("File modified externally");
 
     const reloadButton = page.getByTestId("reload-button");
     await expect(reloadButton).toBeVisible();

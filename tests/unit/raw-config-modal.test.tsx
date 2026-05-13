@@ -80,8 +80,8 @@ describe("Raw Configuration Modal", () => {
       fireEvent.click(screen.getByTestId("raw-config-open"));
     });
 
-    expect(screen.getByTestId("raw-config-modal")).toBeInTheDocument();
-    expect(screen.getByTestId("raw-config-content")).toBeInTheDocument();
+    expect(await screen.findByTestId("raw-config-modal")).toBeInTheDocument();
+    expect(await screen.findByTestId("raw-config-content")).toBeInTheDocument();
   });
 
   test("raw-config-content shows JSON of readonlyTail", async () => {
@@ -99,7 +99,7 @@ describe("Raw Configuration Modal", () => {
       fireEvent.click(screen.getByTestId("raw-config-open"));
     });
 
-    const content = screen.getByTestId("raw-config-content");
+    const content = await screen.findByTestId("raw-config-content");
     expect(content.textContent).toContain("42");
     expect(content.textContent).toContain("hello");
   });
@@ -119,10 +119,10 @@ describe("Raw Configuration Modal", () => {
       fireEvent.click(screen.getByTestId("raw-config-open"));
     });
 
-    expect(screen.getByTestId("raw-config-modal")).toBeInTheDocument();
+    expect(await screen.findByTestId("raw-config-modal")).toBeInTheDocument();
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("raw-config-close"));
+      fireEvent.click(await screen.findByTestId("raw-config-close"));
     });
 
     await waitFor(() => {
@@ -145,7 +145,7 @@ describe("Raw Configuration Modal", () => {
       fireEvent.click(screen.getByTestId("raw-config-open"));
     });
 
-    const modal = screen.getByTestId("raw-config-modal");
+    const modal = await screen.findByTestId("raw-config-modal");
     expect(modal).toBeInTheDocument();
 
     await act(async () => {
@@ -172,7 +172,7 @@ describe("Raw Configuration Modal", () => {
       fireEvent.click(screen.getByTestId("raw-config-open"));
     });
 
-    const modal = screen.getByTestId("raw-config-modal");
+    const modal = await screen.findByTestId("raw-config-modal");
     expect(modal).toHaveAttribute("role", "dialog");
     expect(modal).toHaveAttribute("aria-modal", "true");
     expect(modal).toHaveAttribute("aria-labelledby", "raw-config-title");
@@ -193,7 +193,7 @@ describe("Raw Configuration Modal", () => {
       fireEvent.click(screen.getByTestId("raw-config-open"));
     });
 
-    const closeButton = screen.getByTestId("raw-config-close");
+    const closeButton = await screen.findByTestId("raw-config-close");
     expect(closeButton).toHaveAttribute("aria-label", "Close raw configuration modal");
   });
 
@@ -212,8 +212,8 @@ describe("Raw Configuration Modal", () => {
       fireEvent.click(screen.getByTestId("raw-config-open"));
     });
 
-    const modal = screen.getByTestId("raw-config-modal");
-    const closeButton = screen.getByTestId("raw-config-close");
+    const modal = await screen.findByTestId("raw-config-modal");
+    const closeButton = await screen.findByTestId("raw-config-close");
 
     expect(document.activeElement).toBeTruthy();
 

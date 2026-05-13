@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -14,12 +14,21 @@ import {
   getGlobalConfig,
   updateGlobalConfig,
   getErrorLogs,
+  getProviders,
 } from "@/web/api/client";
 import type { AppError } from "@/web/api/types";
 
 describe("API client", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      value: {},
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   describe("listProfiles", () => {
@@ -287,6 +296,36 @@ describe("API client", () => {
         code: "INTERNAL_ERROR",
         message: "Something went wrong",
       });
+    });
+  });
+
+  describe("HTTP fallback", () => {
+    it("uses fetch outside the Tauri runtime", async () => {
+      Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          providers: {
+            openai: {
+              "gpt-4": { maxTokens: 8192 },
+            },
+          },
+        }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await getProviders();
+
+      expect(invoke).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/config/providers",
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "content-type": "application/json",
+          }),
+        })
+      );
+      expect(result.providers.openai["gpt-4"].maxTokens).toBe(8192);
     });
   });
 });

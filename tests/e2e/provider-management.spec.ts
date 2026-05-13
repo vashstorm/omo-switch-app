@@ -15,7 +15,17 @@ interface ProviderEntry {
 }
 
 function buildProvidersResponse(providers: ProviderEntry[]) {
-  return { providers, mtime: 1000 };
+  return {
+    providers: Object.fromEntries(
+      providers.map((provider) => [
+        provider.name,
+        Object.fromEntries(
+          provider.models.map((model) => [model.name, model.config])
+        ),
+      ])
+    ),
+    mtime: 1000,
+  };
 }
 
 test.describe("Provider Management Lifecycle", () => {
@@ -63,9 +73,9 @@ test.describe("Provider Management Lifecycle", () => {
       }
     });
 
-    await page.route("**/api/config/providers/:provider/models", async (route) => {
-      const url = route.request().url();
-      const providerName = url.split("/").at(-2) ?? "";
+    await page.route(/\/api\/config\/providers\/[^/]+\/models$/, async (route) => {
+      const segments = new URL(route.request().url()).pathname.split("/");
+      const providerName = decodeURIComponent(segments.at(-2) ?? "");
 
       if (route.request().method() === "POST") {
         const body = await route.request().postDataJSON();
@@ -81,12 +91,11 @@ test.describe("Provider Management Lifecycle", () => {
     });
 
     await page.route(
-      "**/api/config/providers/:provider/models/:model",
+      /\/api\/config\/providers\/[^/]+\/models\/[^/]+$/,
       async (route) => {
-        const url = route.request().url();
-        const segments = url.split("/");
-        const providerName = segments.at(-3) ?? "";
-        const modelName = segments.at(-1) ?? "";
+        const segments = new URL(route.request().url()).pathname.split("/");
+        const providerName = decodeURIComponent(segments.at(-3) ?? "");
+        const modelName = decodeURIComponent(segments.at(-1) ?? "");
 
         if (route.request().method() === "PUT") {
           const body = await route.request().postDataJSON();
@@ -113,10 +122,11 @@ test.describe("Provider Management Lifecycle", () => {
     );
 
     await page.route(
-      "**/api/config/providers/:provider",
+      /\/api\/config\/providers\/[^/]+$/,
       async (route) => {
-        const url = route.request().url();
-        const providerName = url.split("/").at(-1) ?? "";
+        const providerName = decodeURIComponent(
+          new URL(route.request().url()).pathname.split("/").at(-1) ?? ""
+        );
 
         if (route.request().method() === "DELETE") {
           deletedProviderNames.push(providerName);
@@ -160,9 +170,8 @@ test.describe("Provider Management Lifecycle", () => {
     // Edit maxTokens of the new model
     await page.locator('[data-testid="model-max-tokens-my-custom-provider-my-model"]').click();
 
-    const editInput = page.locator('[data-testid="model-max-tokens-my-custom-provider-my-model"] input, [data-testid="model-max-tokens-my-custom-provider-my-model"]');
     await page.waitForTimeout(100);
-    const textField = page.locator('[data-testid="model-max-tokens-my-custom-provider-my-model"]').locator('input').first();
+    const textField = page.locator('[data-testid="model-max-tokens-my-custom-provider-my-model"]');
     await textField.fill("16384");
 
     await page.locator('[data-testid="model-save-my-custom-provider-my-model"]').click();
@@ -194,7 +203,7 @@ test.describe("Provider Management Lifecycle", () => {
     // Start editing maxTokens on existing model
     await page.locator('[data-testid="model-max-tokens-test-provider-test-model"]').click();
 
-    const textField = page.locator('[data-testid="model-max-tokens-test-provider-test-model"]').locator('input').first();
+    const textField = page.locator('[data-testid="model-max-tokens-test-provider-test-model"]');
     await textField.fill("-1");
 
     await page.locator('[data-testid="model-save-test-provider-test-model"]').click();
@@ -271,7 +280,7 @@ test.describe("Provider Management Lifecycle", () => {
 
     // 3. Edit maxTokens
     await page.locator('[data-testid="model-max-tokens-cycle-provider-cycle-model"]').click();
-    const textField = page.locator('[data-testid="model-max-tokens-cycle-provider-cycle-model"]').locator('input').first();
+    const textField = page.locator('[data-testid="model-max-tokens-cycle-provider-cycle-model"]');
     await textField.fill("64000");
     await page.locator('[data-testid="model-save-cycle-provider-cycle-model"]').click();
     await expect(page.locator('[data-testid="model-max-tokens-cycle-provider-cycle-model"]')).toContainText("64000");

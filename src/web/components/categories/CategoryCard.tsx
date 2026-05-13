@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   Card,
   CardContent,
@@ -37,7 +38,7 @@ interface CategoryCardProps {
   onToggleCollapse?: () => void;
 }
 
-export function CategoryCard({ id, category, availableModels, availableModelGroups, onChange, onModelChange, onDelete, collapsed = false, onToggleCollapse }: CategoryCardProps) {
+function CategoryCardComponent({ id, category, availableModels, availableModelGroups, onChange, onModelChange, onDelete, collapsed = false, onToggleCollapse }: CategoryCardProps) {
   const handleChange = (field: keyof CategoryConfig, value: any) => {
     const newCategory = { ...category, [field]: value };
     const cleaned = filterEmptyFields(newCategory, CATEGORY_MANAGED_FIELDS) as Partial<CategoryConfig>;
@@ -187,7 +188,7 @@ export function CategoryCard({ id, category, availableModels, availableModelGrou
         </Tooltip>
       </Box>
 
-      <Collapse in={!collapsed} id={`category-body-${id}`}>
+      <Collapse in={!collapsed} id={`category-body-${id}`} unmountOnExit>
         <CardContent sx={{ p: 2, pt: 1.5, "&:last-child": { pb: 2 } }}>
           <Stack spacing={2}>
             <Box>
@@ -386,3 +387,5 @@ export function CategoryCard({ id, category, availableModels, availableModelGrou
     </Card>
   );
 }
+
+export const CategoryCard = memo(CategoryCardComponent);

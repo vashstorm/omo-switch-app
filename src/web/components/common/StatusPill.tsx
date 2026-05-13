@@ -78,6 +78,7 @@ export function StatusPill({ type, label, icon, pulse = false }: StatusPillProps
       icon={displayIcon as React.ReactElement}
       label={label}
       variant={config.variant}
+      data-testid={`status-${type}`}
       sx={{
         height: 28,
         padding: "0 10px 0 4px",

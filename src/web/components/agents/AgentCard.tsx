@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Trash2, ChevronDown, ChevronRight, Plus, X, AlertCircle } from "lucide-react";
 import { AgentConfig, UltraworkConfig } from "../../hooks/useProfile";
 import { getAgentDescription } from "../../../shared/agent-catalog";
@@ -28,7 +29,7 @@ interface AgentCardProps {
   categoryIds?: string[];
 }
 
-export function AgentCard({ id, agent, availableModels, availableModelGroups, onChange, onModelChange, onDelete, collapsed = false, onToggleCollapse, categoryIds }: AgentCardProps) {
+function AgentCardComponent({ id, agent, availableModels, availableModelGroups, onChange, onModelChange, onDelete, collapsed = false, onToggleCollapse, categoryIds }: AgentCardProps) {
   const roleNote = getAgentDescription(id);
 
   const handleChange = (field: keyof AgentConfig, value: any) => {
@@ -245,7 +246,7 @@ export function AgentCard({ id, agent, availableModels, availableModelGroups, on
             </Tooltip>
           </Box>
 
-          <Collapse in={!collapsed} id={`agent-body-${id}`}>
+          <Collapse in={!collapsed} id={`agent-body-${id}`} unmountOnExit>
             <CardContent sx={{ p: 2, pt: 1.5, "&:last-child": { pb: 2 } }}>
           <Stack
             spacing={1.5}
@@ -463,6 +464,9 @@ export function AgentCard({ id, agent, availableModels, availableModelGroups, on
                 onChange={handlePromptAppendChange}
                 placeholder="Additional instructions..."
                 slotProps={{
+                  htmlInput: {
+                    "data-testid": `agent-prompt-${id}`,
+                  },
                   input: {
                     style: {
                       fontSize: "0.8rem",
@@ -693,3 +697,5 @@ export function AgentCard({ id, agent, availableModels, availableModelGroups, on
     </Card>
   );
 }
+
+export const AgentCard = memo(AgentCardComponent);
