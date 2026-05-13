@@ -157,9 +157,6 @@ function buildComponentOverrides(
           "& .MuiOutlinedInput-root": {
             borderRadius: r.control,
             transition: transitionControl,
-            "&.Mui-focused": {
-              boxShadow: `0 0 0 3px ${focusRingColor}`,
-            },
           },
           "& .MuiOutlinedInput-input": {
             padding: "10px 14px",

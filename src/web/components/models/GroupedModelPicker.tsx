@@ -42,7 +42,6 @@ function GroupedModelPickerComponent({
   const theme = useTheme();
   const popoverId = useId();
   const [open, setOpen] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [modelPopoverAnchorEl, setModelPopoverAnchorEl] = useState<HTMLElement | null>(null);
   const [activeProvider, setActiveProvider] = useState<string | null>(groups[0]?.provider ?? null);
@@ -225,14 +224,6 @@ function GroupedModelPickerComponent({
     [handleClose],
   );
 
-  const handleMouseEnter = useCallback(() => {
-    setHovered(true);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    setHovered(false);
-  }, []);
-
   const renderTrigger = () => {
     const hasSingleValue = !multiple && typeof value === "string" && value;
     const hasMultiValue = multiple && Array.isArray(value) && value.length > 0;
@@ -344,8 +335,6 @@ function GroupedModelPickerComponent({
   return (
     <Box
       data-testid={testId}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
       sx={{
         ...(containerSx || {}),
         width: "100%",
@@ -369,12 +358,9 @@ function GroupedModelPickerComponent({
           pointerEvents: "none",
           borderRadius: 1,
           border: `1px solid ${
-            open || hovered ? theme.palette.text.primary : theme.palette.divider
+            open ? theme.palette.primary.main : theme.palette.divider
           }`,
-          boxShadow: open
-            ? `0 0 0 3px ${alpha(accent, 0.15)}`
-            : "none",
-          transition: "border-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "border-color 150ms cubic-bezier(0.4, 0, 0.2, 1)",
           overflow: "hidden",
           minWidth: "0%",
         }}
@@ -411,7 +397,7 @@ function GroupedModelPickerComponent({
             top: -7,
             left: 14,
             fontSize: "0.75rem",
-            color: open ? accent : hovered ? "text.primary" : "text.secondary",
+            color: open ? "primary.main" : "text.secondary",
             zIndex: 1,
             pointerEvents: "none",
             fontFamily: MONO_FONT,
