@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useId, useMemo } from "react";
+import { memo, useState, useRef, useCallback, useId, useMemo } from "react";
 import { Box, Popover, List, ListItem, ListItemText, Chip, Typography, alpha, useTheme, InputLabel } from "@mui/material";
 import { X } from "lucide-react";
 import type { ModelGroup } from "../../../shared/config/types";
@@ -27,7 +27,7 @@ function getModelLabel(modelId: string): string {
   return modelId;
 }
 
-export function GroupedModelPicker({
+function GroupedModelPickerComponent({
   groups,
   value,
   multiple,
@@ -616,3 +616,5 @@ export function GroupedModelPicker({
     </Box>
   );
 }
+
+export const GroupedModelPicker = memo(GroupedModelPickerComponent);

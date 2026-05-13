@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import React, { memo, useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { 
   Card, Box, Typography, Collapse, 
   ButtonBase, Chip, Paper
@@ -16,7 +16,7 @@ interface MiscEditorProps {
   expandTargetId?: string | null;
 }
 
-export function MiscEditor({ miscData, globalCollapseKey, globalExpandKey, expandTargetId }: MiscEditorProps) {
+function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, expandTargetId }: MiscEditorProps) {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
     const collapseKey = globalCollapseKey ?? 0;
     const expandKey = globalExpandKey ?? 0;
@@ -499,7 +499,7 @@ export function MiscEditor({ miscData, globalCollapseKey, globalExpandKey, expan
               </ButtonBase>
             </Box>
 
-            <Collapse in={!collapsed}>
+            <Collapse in={!collapsed} unmountOnExit>
                <Box 
                  id={`misc-body-${sectionName}`} 
                  sx={{ 
@@ -518,3 +518,5 @@ export function MiscEditor({ miscData, globalCollapseKey, globalExpandKey, expan
     </Box>
   );
 }
+
+export const MiscEditor = memo(MiscEditorComponent);

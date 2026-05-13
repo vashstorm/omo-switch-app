@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.omo-switch.app",
   "build": {
-    "beforeDevCommand": "bun run build:web",
+    "beforeDevCommand": "bun run build:web:assets",
     "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "bun run build:web",
+    "beforeBuildCommand": "bun run build:web:assets",
     "frontendDist": "../dist/web"
   },
   "app": {

@@ -250,9 +250,14 @@ const DEFAULT_MAX_TOKENS: u32 = 64000;
 
 fn validate_provider_name(name: &str) -> Result<(), AppError> {
     if name.is_empty() {
-        return Err(AppError::ValidationError("Provider name cannot be empty".to_string()));
+        return Err(AppError::ValidationError(
+            "Provider name cannot be empty".to_string(),
+        ));
     }
-    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
         return Err(AppError::ValidationError(
             "Provider name must contain only lowercase letters, digits, and hyphens".to_string(),
         ));
@@ -262,7 +267,9 @@ fn validate_provider_name(name: &str) -> Result<(), AppError> {
 
 fn validate_model_name(name: &str) -> Result<(), AppError> {
     if name.is_empty() {
-        return Err(AppError::ValidationError("Model name cannot be empty".to_string()));
+        return Err(AppError::ValidationError(
+            "Model name cannot be empty".to_string(),
+        ));
     }
     if name.contains('/') {
         return Err(AppError::ValidationError(
@@ -290,12 +297,13 @@ fn get_providers_impl(paths: &AppPaths) -> Result<ProvidersListResponse, AppErro
                                     .unwrap()
                                     .iter()
                                     .map(|(model_name, model_value)| {
-                                        let model_config = serde_json::from_value(model_value.clone())
-                                            .unwrap_or_else(|_| ModelConfig {
-                                                model_type: None,
-                                                max_tokens: None,
-                                                extra: std::collections::HashMap::new(),
-                                            });
+                                        let model_config =
+                                            serde_json::from_value(model_value.clone())
+                                                .unwrap_or_else(|_| ModelConfig {
+                                                    model_type: None,
+                                                    max_tokens: None,
+                                                    extra: std::collections::HashMap::new(),
+                                                });
                                         (model_name.clone(), model_config)
                                     })
                                     .collect()
@@ -304,7 +312,7 @@ fn get_providers_impl(paths: &AppPaths) -> Result<ProvidersListResponse, AppErro
                             };
                             (provider_name.clone(), provider_models)
                         })
-                        .collect()
+                        .collect(),
                 )
             } else {
                 None
@@ -322,7 +330,11 @@ fn create_provider_impl(
     validate_provider_name(&request.name)?;
 
     let config = read_jsonc_file(&paths.config_file)?;
-    if config.get("providers").and_then(|p| p.get(&request.name)).is_some() {
+    if config
+        .get("providers")
+        .and_then(|p| p.get(&request.name))
+        .is_some()
+    {
         return Err(AppError::ValidationError(format!(
             "Provider '{}' already exists",
             request.name
@@ -335,8 +347,12 @@ fn create_provider_impl(
         "{}".to_string()
     };
 
-    content = jsonc_modify(&content, &["providers", &request.name], Some(&Value::Object(serde_json::Map::new())))
-        .map_err(|e| AppError::WriteError(e.message()))?;
+    content = jsonc_modify(
+        &content,
+        &["providers", &request.name],
+        Some(&Value::Object(serde_json::Map::new())),
+    )
+    .map_err(|e| AppError::WriteError(e.message()))?;
 
     write_jsonc_file(&paths.config_file, &content)
         .map_err(|e| AppError::WriteError(e.message()))?;
@@ -506,23 +522,35 @@ fn delete_provider_impl(
     Ok(DeleteResponse { success: true })
 }
 
-#[tauri::command]
-pub fn get_global_config(app_handle: tauri::AppHandle) -> Result<GlobalConfigResponse, AppError> {
-    let paths = AppPaths::from_tauri(&app_handle)?;
-    get_global_config_impl(&paths)
+async fn run_config_task<T, F>(task: F) -> Result<T, AppError>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, AppError> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(task)
+        .await
+        .map_err(|e| AppError::ReadError(format!("Background config task failed: {}", e)))?
 }
 
 #[tauri::command]
-pub fn update_global_config(
+pub async fn get_global_config(
+    app_handle: tauri::AppHandle,
+) -> Result<GlobalConfigResponse, AppError> {
+    let paths = AppPaths::from_tauri(&app_handle)?;
+    run_config_task(move || get_global_config_impl(&paths)).await
+}
+
+#[tauri::command]
+pub async fn update_global_config(
     app_handle: tauri::AppHandle,
     request: UpdateGlobalConfigRequest,
 ) -> Result<UpdateGlobalConfigResponse, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
-    update_global_config_impl(&paths, request)
+    run_config_task(move || update_global_config_impl(&paths, request)).await
 }
 
 #[tauri::command]
-pub fn get_error_logs(app_handle: tauri::AppHandle) -> ErrorLogsResponse {
+pub async fn get_error_logs(app_handle: tauri::AppHandle) -> ErrorLogsResponse {
     let paths = match AppPaths::from_tauri(&app_handle) {
         Ok(p) => p,
         Err(e) => {
@@ -534,62 +562,72 @@ pub fn get_error_logs(app_handle: tauri::AppHandle) -> ErrorLogsResponse {
             };
         }
     };
-    get_error_logs_impl(&paths)
+    match tauri::async_runtime::spawn_blocking(move || get_error_logs_impl(&paths)).await {
+        Ok(response) => response,
+        Err(e) => ErrorLogsResponse {
+            entries: vec![],
+            source_file: "omo-switch.error.log".to_string(),
+            truncated: false,
+            read_error: Some(format!("Background error log task failed: {}", e)),
+        },
+    }
 }
 
 #[tauri::command]
-pub fn get_providers(app_handle: tauri::AppHandle) -> Result<ProvidersListResponse, AppError> {
+pub async fn get_providers(
+    app_handle: tauri::AppHandle,
+) -> Result<ProvidersListResponse, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
-    get_providers_impl(&paths)
+    run_config_task(move || get_providers_impl(&paths)).await
 }
 
 #[tauri::command]
-pub fn create_provider(
+pub async fn create_provider(
     app_handle: tauri::AppHandle,
     request: CreateProviderRequest,
 ) -> Result<ProviderModelResponse, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
-    create_provider_impl(&paths, request)
+    run_config_task(move || create_provider_impl(&paths, request)).await
 }
 
 #[tauri::command]
-pub fn create_model(
+pub async fn create_model(
     app_handle: tauri::AppHandle,
     provider_name: String,
     request: CreateModelRequest,
 ) -> Result<ProviderModelResponse, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
-    create_model_impl(&paths, provider_name, request)
+    run_config_task(move || create_model_impl(&paths, provider_name, request)).await
 }
 
 #[tauri::command]
-pub fn update_model(
+pub async fn update_model(
     app_handle: tauri::AppHandle,
     provider_name: String,
     model_name: String,
     request: UpdateModelRequest,
 ) -> Result<ProviderModelResponse, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
-    update_model_impl(&paths, provider_name, model_name, request)
+    run_config_task(move || update_model_impl(&paths, provider_name, model_name, request)).await
 }
 
 #[tauri::command]
-pub fn delete_model(
+pub async fn delete_model(
     app_handle: tauri::AppHandle,
     provider_name: String,
     model_name: String,
 ) -> Result<DeleteResponse, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
-    delete_model_impl(&paths, provider_name, model_name)
+    run_config_task(move || delete_model_impl(&paths, provider_name, model_name)).await
 }
 
 #[tauri::command]
-pub fn delete_provider(
+pub async fn delete_provider(
     app_handle: tauri::AppHandle,
     provider_name: String,
 ) -> Result<DeleteResponse, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
-    delete_provider_impl(&paths, provider_name)
+    run_config_task(move || delete_provider_impl(&paths, provider_name)).await
 }
 
 #[cfg(test)]
@@ -1043,7 +1081,11 @@ mod tests {
         assert!(result.success);
 
         let config = read_jsonc_file(&paths.config_file).unwrap();
-        assert!(config.get("providers").unwrap().get("custom-provider").is_some());
+        assert!(config
+            .get("providers")
+            .unwrap()
+            .get("custom-provider")
+            .is_some());
     }
 
     #[test]
@@ -1078,8 +1120,12 @@ mod tests {
     }"#;
         fs::write(&paths.config_file, content).unwrap();
 
-        let result = delete_model_impl(&paths, "anthropic".to_string(), "claude-opus-4-5".to_string())
-            .unwrap();
+        let result = delete_model_impl(
+            &paths,
+            "anthropic".to_string(),
+            "claude-opus-4-5".to_string(),
+        )
+        .unwrap();
         assert!(result.success);
 
         let config = read_jsonc_file(&paths.config_file).unwrap();
@@ -1194,8 +1240,13 @@ mod tests {
             max_tokens: Some(128000),
             extra: std::collections::HashMap::new(),
         };
-        update_model_impl(&paths, "anthropic".to_string(), "claude-opus-4-5".to_string(), request)
-            .unwrap();
+        update_model_impl(
+            &paths,
+            "anthropic".to_string(),
+            "claude-opus-4-5".to_string(),
+            request,
+        )
+        .unwrap();
 
         let config = read_jsonc_file(&paths.config_file).unwrap();
         let model = config

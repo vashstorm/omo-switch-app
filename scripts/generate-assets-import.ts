@@ -3,7 +3,7 @@ import { writeFileSync } from "node:fs";
 import path from "node:path";
 
 async function generateAssetsImport() {
-  const glob = new Glob("./dist/web/*");
+  const glob = new Glob("./dist/web/**/*");
   const files = Array.from(glob.scanSync("."));
 
   if (files.length === 0) {
@@ -15,14 +15,21 @@ async function generateAssetsImport() {
   const assetMap: string[] = [];
 
   for (const filePath of files) {
+    if (!Bun.file(filePath).size) {
+      continue;
+    }
+
     const fileName = path.basename(filePath);
+    const relativePath = `/${path.relative("dist/web", filePath).split(path.sep).join("/")}`;
+    const importPath = `../../${filePath.replace(/^\.\//, "")}`;
     const varName = `asset_${fileName.replace(/[^a-zA-Z0-9]/g, "_")}`;
 
-    imports.push(`import ${varName} from "${filePath}" with { type: "file" };`);
-    assetMap.push(`  "/${fileName}": ${varName},`);
+    imports.push(`import ${varName} from "${importPath}" with { type: "file" };`);
+    assetMap.push(`  "${relativePath}": ${varName},`);
   }
 
-  const output = `// Auto-generated file - do not edit manually
+  const output = `// @ts-nocheck
+// Auto-generated file - do not edit manually
 ${imports.join("\n")}
 
 export const embeddedAssets: Record<string, string> = {

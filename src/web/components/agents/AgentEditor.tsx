@@ -1,4 +1,5 @@
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { memo, useCallback, useMemo, useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { AgentConfig } from "../../hooks/useProfile";
 import type { ModelGroup } from "../../../shared/config/types";
 import { AgentCard } from "./AgentCard";
@@ -17,6 +18,67 @@ interface AgentEditorProps {
   expandTargetId?: string | null;
   categoryIds?: string[];
 }
+
+const VIRTUAL_LIST_THRESHOLD = 80;
+
+interface AgentRowProps {
+  id: string;
+  config: Partial<AgentConfig>;
+  availableModels: string[];
+  availableModelGroups?: ModelGroup[];
+  collapsed: boolean;
+  categoryIds?: string[];
+  onAgentChange: (id: string, updated: Partial<AgentConfig>) => void;
+  onModelChangeIntent?: (kind: "agent", id: string, previousModel: string, nextModel: string) => void;
+  onDeleteIntent: (id: string) => void;
+  onToggleCollapse: (id: string) => void;
+}
+
+const AgentRow = memo(function AgentRow({
+  id,
+  config,
+  availableModels,
+  availableModelGroups,
+  collapsed,
+  categoryIds,
+  onAgentChange,
+  onModelChangeIntent,
+  onDeleteIntent,
+  onToggleCollapse,
+}: AgentRowProps) {
+  const handleChange = useCallback((updated: Partial<AgentConfig>) => {
+    onAgentChange(id, updated);
+  }, [id, onAgentChange]);
+
+  const handleModelChange = useMemo(() => (
+    onModelChangeIntent
+      ? (nextModel: string, prevModel: string) => onModelChangeIntent("agent", id, prevModel, nextModel)
+      : undefined
+  ), [id, onModelChangeIntent]);
+
+  const handleDelete = useCallback(() => {
+    onDeleteIntent(id);
+  }, [id, onDeleteIntent]);
+
+  const handleToggleCollapse = useCallback(() => {
+    onToggleCollapse(id);
+  }, [id, onToggleCollapse]);
+
+  return (
+    <AgentCard
+      id={id}
+      agent={config}
+      availableModels={availableModels}
+      availableModelGroups={availableModelGroups}
+      onChange={handleChange}
+      onModelChange={handleModelChange}
+      onDelete={handleDelete}
+      collapsed={collapsed}
+      onToggleCollapse={handleToggleCollapse}
+      categoryIds={categoryIds}
+    />
+  );
+});
 
 export function AgentEditor({ agents, availableModels, availableModelGroups, onChange, onModelChangeIntent, globalCollapseKey, globalExpandKey, expandTargetId, categoryIds }: AgentEditorProps) {
   const [collapsedIds, setCollapsedIds] = useState<Record<string, boolean>>(() => {
@@ -64,18 +126,37 @@ export function AgentEditor({ agents, availableModels, availableModelGroups, onC
     }
   }, [expandTargetId]);
 
-  const activeAgents = Object.entries(agents).filter(([_, config]) => config !== null);
+  const activeAgents = useMemo(() =>
+    Object.entries(agents).filter((entry): entry is [string, Partial<AgentConfig>] => entry[1] !== null),
+    [agents]);
+  const activeAgentIndex = useMemo(() => {
+    const index = new Map<string, number>();
+    activeAgents.forEach(([id], idx) => index.set(id, idx));
+    return index;
+  }, [activeAgents]);
+  const shouldVirtualize = activeAgents.length > VIRTUAL_LIST_THRESHOLD;
+  const virtualParentRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: shouldVirtualize ? activeAgents.length : 0,
+    getScrollElement: () => virtualParentRef.current,
+    estimateSize: () => 420,
+    overscan: 6,
+  });
 
-  const handleAgentChange = (id: string, updatedConfig: Partial<AgentConfig> | null) => {
+  const handleAgentChange = useCallback((id: string, updatedConfig: Partial<AgentConfig> | null) => {
     onChange({
-      ...agents,
+      ...agentsRef.current,
       [id]: updatedConfig
     });
-  };
+  }, [onChange]);
 
-  const handleToggleCollapse = (id: string) => {
+  const handleToggleCollapse = useCallback((id: string) => {
     setCollapsedIds((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  }, []);
+
+  const handleDeleteIntent = useCallback((id: string) => {
+    setPendingDeleteId(id);
+  }, []);
 
   const handleDeleteConfirm = () => {
     if (pendingDeleteId) {
@@ -91,30 +172,90 @@ export function AgentEditor({ agents, availableModels, availableModelGroups, onC
     setPendingDeleteId(null);
   };
 
+  useEffect(() => {
+    if (!expandTargetId || !shouldVirtualize) return;
+    const index = activeAgentIndex.get(expandTargetId);
+    if (index !== undefined) {
+      virtualizer.scrollToIndex(index, { align: "center" });
+    }
+  }, [activeAgentIndex, expandTargetId, shouldVirtualize, virtualizer]);
+
+  const renderRow = useCallback(([id, config]: [string, Partial<AgentConfig>]) => (
+    <AgentRow
+      key={id}
+      id={id}
+      config={config}
+      availableModels={availableModels}
+      availableModelGroups={availableModelGroups}
+      onAgentChange={handleAgentChange}
+      onModelChangeIntent={onModelChangeIntent}
+      onDeleteIntent={handleDeleteIntent}
+      collapsed={!!collapsedIds[id]}
+      onToggleCollapse={handleToggleCollapse}
+      categoryIds={categoryIds}
+    />
+  ), [
+    availableModelGroups,
+    availableModels,
+    categoryIds,
+    collapsedIds,
+    handleAgentChange,
+    handleDeleteIntent,
+    handleToggleCollapse,
+    onModelChangeIntent,
+  ]);
+
   return (
     <Box data-testid="agent-editor">
-      <Stack
-        data-testid="agent-list"
-        spacing={2}
-      >
-        {activeAgents.map(([id, config]) => (
-          <AgentCard
-            key={id}
-            id={id}
-            agent={config!}
-            availableModels={availableModels}
-            availableModelGroups={availableModelGroups}
-            onChange={(updated) => handleAgentChange(id, updated)}
-            onModelChange={onModelChangeIntent
-              ? (nextModel, prevModel) => onModelChangeIntent("agent", id, prevModel, nextModel)
-              : undefined}
-            onDelete={() => setPendingDeleteId(id)}
-            collapsed={!!collapsedIds[id]}
-            onToggleCollapse={() => handleToggleCollapse(id)}
-            categoryIds={categoryIds}
-          />
-        ))}
-      </Stack>
+      {shouldVirtualize ? (
+        <Box
+          ref={virtualParentRef}
+          data-testid="agent-list"
+          sx={{
+            maxHeight: "72vh",
+            overflow: "auto",
+            contain: "strict",
+          }}
+        >
+          <Box
+            sx={{
+              height: virtualizer.getTotalSize(),
+              position: "relative",
+              width: "100%",
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const entry = activeAgents[virtualItem.index];
+              if (!entry) return null;
+
+              return (
+                <Box
+                  key={entry[0]}
+                  ref={virtualizer.measureElement}
+                  data-index={virtualItem.index}
+                  sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualItem.start}px)`,
+                    pb: 2,
+                  }}
+                >
+                  {renderRow(entry)}
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+      ) : (
+        <Stack
+          data-testid="agent-list"
+          spacing={2}
+        >
+          {activeAgents.map(renderRow)}
+        </Stack>
+      )}
       <ConfirmDialog
         open={pendingDeleteId !== null}
         title="Delete Agent"

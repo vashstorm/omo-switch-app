@@ -7,6 +7,11 @@ export interface ReferenceImpactEntry {
   modelId: string;
 }
 
+export interface ReferenceImpactIndex {
+  byProvider: Record<string, ReferenceImpactEntry[]>;
+  byModel: Record<string, ReferenceImpactEntry[]>;
+}
+
 interface ScanConfig {
   agents: Record<string, AgentConfig | null>;
   categories: Record<string, CategoryConfig | null>;
@@ -48,6 +53,74 @@ function scanEntries(
   return results;
 }
 
+function pushIndexedEntry(index: ReferenceImpactIndex, entry: ReferenceImpactEntry): void {
+  const slashIndex = entry.modelId.indexOf("/");
+  const provider = slashIndex >= 0 ? entry.modelId.slice(0, slashIndex) : "";
+
+  if (provider) {
+    (index.byProvider[provider] ??= []).push(entry);
+  }
+  (index.byModel[entry.modelId] ??= []).push(entry);
+}
+
+function indexEntries(
+  index: ReferenceImpactIndex,
+  kind: "agent" | "category",
+  entries: Record<string, AgentConfig | CategoryConfig | null>,
+): void {
+  for (const [id, entry] of Object.entries(entries)) {
+    if (entry === null || entry === undefined) continue;
+
+    const agent = entry as AgentConfig;
+
+    if (agent.model) {
+      pushIndexedEntry(index, { kind, id, field: "model", modelId: agent.model });
+    }
+
+    if (agent.fallback_models && Array.isArray(agent.fallback_models)) {
+      for (const modelId of agent.fallback_models) {
+        pushIndexedEntry(index, { kind, id, field: "fallback_models", modelId });
+      }
+    }
+
+    if (kind === "agent" && agent.ultrawork?.model) {
+      pushIndexedEntry(index, {
+        kind,
+        id,
+        field: "ultrawork_model",
+        modelId: agent.ultrawork.model,
+      });
+    }
+  }
+}
+
+function sortEntries(entries: ReferenceImpactEntry[]): ReferenceImpactEntry[] {
+  return entries.sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
+    if (a.id !== b.id) return a.id.localeCompare(b.id);
+    return a.field.localeCompare(b.field);
+  });
+}
+
+export function buildReferenceImpactIndex(config: ScanConfig): ReferenceImpactIndex {
+  const index: ReferenceImpactIndex = {
+    byProvider: {},
+    byModel: {},
+  };
+
+  indexEntries(index, "agent", config.agents);
+  indexEntries(index, "category", config.categories);
+
+  for (const entries of Object.values(index.byProvider)) {
+    sortEntries(entries);
+  }
+  for (const entries of Object.values(index.byModel)) {
+    sortEntries(entries);
+  }
+
+  return index;
+}
+
 export function scanProviderReferences(
   config: ScanConfig,
   providerName: string,
@@ -58,14 +131,7 @@ export function scanProviderReferences(
   const agentResults = scanEntries("agent", config.agents, matches);
   const categoryResults = scanEntries("category", config.categories, matches);
 
-  const all = [...agentResults, ...categoryResults];
-  all.sort((a, b) => {
-    if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
-    if (a.id !== b.id) return a.id.localeCompare(b.id);
-    return a.field.localeCompare(b.field);
-  });
-
-  return all;
+  return sortEntries([...agentResults, ...categoryResults]);
 }
 
 export function scanModelReferences(
@@ -79,12 +145,5 @@ export function scanModelReferences(
   const agentResults = scanEntries("agent", config.agents, matches);
   const categoryResults = scanEntries("category", config.categories, matches);
 
-  const all = [...agentResults, ...categoryResults];
-  all.sort((a, b) => {
-    if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
-    if (a.id !== b.id) return a.id.localeCompare(b.id);
-    return a.field.localeCompare(b.field);
-  });
-
-  return all;
+  return sortEntries([...agentResults, ...categoryResults]);
 }

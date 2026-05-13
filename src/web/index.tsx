@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useProfile, EditableConfig, AgentConfig, ProfileConfigResult } from "./hooks/useProfile";
+import { lazy, Suspense, useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useProfile, EditableConfig, AgentConfig } from "./hooks/useProfile";
 import { useGlobalConfig } from "./hooks/useGlobalConfig";
 import { useThemePreference } from "./theme/ThemeContext";
 import { useKeyboardShortcut } from "./hooks/useKeyboardShortcut";
@@ -15,13 +15,14 @@ import { ProvidersEditor } from "./components/misc/ProvidersEditor";
 import { useProviders } from "./hooks/useProviders";
 import { AgentEditor } from "./components/agents/AgentEditor";
 import { CategoryEditor } from "./components/categories/CategoryEditor";
-import { ConfirmDialog, LoadingPanel, ToastViewport, DialogFrame, ErrorLogPanel } from "./components/common";
+import { ConfirmDialog } from "./components/common/ConfirmDialog";
+import { LoadingPanel } from "./components/common/LoadingPanel";
+import { ToastViewport } from "./components/common/ToastViewport";
 import { useUnifiedErrorLog } from "./hooks/useUnifiedErrorLog";
-import { SyncReplacePreviewDialog } from "./components/sync-replace/SyncReplacePreviewDialog";
 import { collectSyncReplaceImpact, applySyncReplace, applySyncReplaceOne, SyncReplaceImpact } from "./sync-replace/modelSync";
-import { scanProviderReferences, scanModelReferences, ReferenceImpactEntry } from "./providers/referenceImpact";
+import { buildReferenceImpactIndex, ReferenceImpactEntry } from "./providers/referenceImpact";
 import { getModelDisplayInfo } from "../shared/model-catalog";
-import { Copy, RefreshCw, Star, StarOff, Check, X } from "lucide-react";
+import { Copy, RefreshCw, Star, StarOff, X } from "lucide-react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
@@ -31,10 +32,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
 import Alert from "@mui/material/Alert";
-import Tooltip from "@mui/material/Tooltip";
 import { alpha, useTheme } from "@mui/material/styles";
-import { DURATIONS, EASING } from "./theme/motionTokens";
-import { MONO_FONT } from "./theme/typography";
 import { lightTokens, darkTokens } from "./theme/designTokens";
 import {
   APP_ZOOM_STEP_PERCENT,
@@ -43,6 +41,17 @@ import {
   normalizeAppZoomPercent,
 } from "./zoom/appZoom";
 
+const LazyRawConfigDialog = lazy(() => import("./components/common/RawConfigDialog"));
+const LazySyncReplacePreviewDialog = lazy(() =>
+  import("./components/sync-replace/SyncReplacePreviewDialog").then((mod) => ({
+    default: mod.SyncReplacePreviewDialog,
+  })),
+);
+const LazyErrorLogPanel = lazy(() =>
+  import("./components/common/ErrorLogPanel").then((mod) => ({
+    default: mod.ErrorLogPanel,
+  })),
+);
 
 interface Toast {
   id: number;
@@ -70,7 +79,6 @@ export function App() {
   const [copyLoading, setCopyLoading] = useState(false);
   const [copyDialogError, setCopyDialogError] = useState<string | null>(null);
   const [showRawModal, setShowRawModal] = useState(false);
-  const [rawConfigCopied, setRawConfigCopied] = useState(false);
   const [globalCollapseKey, setGlobalCollapseKey] = useState(0);
   const [globalExpandKey, setGlobalExpandKey] = useState(0);
   const [expandAgentTarget, setExpandAgentTarget] = useState<string | null>(null);
@@ -464,13 +472,15 @@ export function App() {
   };
 
   const handleAgentsChange = useCallback((newAgentsConfig: Record<string, Partial<AgentConfig> | null>) => {
-    if (!editableConfig) return;
-    setEditableConfig({
-      ...editableConfig,
-      agents: newAgentsConfig
+    setEditableConfig((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        agents: newAgentsConfig,
+      };
     });
     setIsDirty(true);
-  }, [editableConfig]);
+  }, []);
 
   const handleCreateAgent = (id: string) => {
     if (!editableConfig) return;
@@ -484,13 +494,15 @@ export function App() {
   };
 
   const handleCategoriesChange = useCallback((newCategoriesConfig: EditableConfig["categories"]) => {
-    if (!editableConfig) return;
-    setEditableConfig({
-      ...editableConfig,
-      categories: newCategoriesConfig
+    setEditableConfig((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        categories: newCategoriesConfig,
+      };
     });
     setIsDirty(true);
-  }, [editableConfig]);
+  }, []);
 
   const applyModelChange = useCallback((
     kind: "agent" | "category",
@@ -599,18 +611,6 @@ export function App() {
     setShowCopyDialog(true);
   };
 
-  const handleCopyRawConfig = async () => {
-    if (!currentProfile) return;
-    const rawJson = JSON.stringify(buildSortedPreviewData(currentProfile), null, 2);
-    try {
-      await navigator.clipboard.writeText(rawJson);
-      setRawConfigCopied(true);
-      setTimeout(() => setRawConfigCopied(false), 1500);
-    } catch {
-      addToast("error", "Failed to copy to clipboard");
-    }
-  };
-
   const handleCopySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProfileId || !copyTargetId.trim()) return;
@@ -675,21 +675,17 @@ export function App() {
     buildModelMap(displayCategories),
     [displayCategories]);
 
+  const referenceImpactIndex = useMemo(() =>
+    buildReferenceImpactIndex({ agents: displayAgents, categories: displayCategories }),
+    [displayAgents, displayCategories]);
+
   const getProviderImpact = useCallback((providerName: string): ReferenceImpactEntry[] => {
-    if (!displayAgents || !displayCategories) return [];
-    return scanProviderReferences(
-      { agents: displayAgents, categories: displayCategories },
-      providerName
-    );
-  }, [displayAgents, displayCategories]);
+    return referenceImpactIndex.byProvider[providerName] ?? [];
+  }, [referenceImpactIndex]);
 
   const getModelImpact = useCallback((providerName: string, modelName: string): ReferenceImpactEntry[] => {
-    if (!displayAgents || !displayCategories) return [];
-    return scanModelReferences(
-      { agents: displayAgents, categories: displayCategories },
-      providerName, modelName
-    );
-  }, [displayAgents, displayCategories]);
+    return referenceImpactIndex.byModel[`${providerName}/${modelName}`] ?? [];
+  }, [referenceImpactIndex]);
 
   const effectiveMiscSectionNames = currentProfile?.effective?.misc
     ? Object.keys(currentProfile.effective.misc as Record<string, unknown>).sort()
@@ -934,57 +930,18 @@ export function App() {
         saveSuccess={saveSuccess}
       />
 
-      <DialogFrame
-        open={showRawModal}
-        onClose={() => {
-          setShowRawModal(false);
-          setRawConfigCopied(false);
-        }}
-        title="Raw Configuration"
-        testId="raw-config-modal"
-        closeTestId="raw-config-close"
-        closeAriaLabel="Close raw configuration modal"
-        headerExtra={
-          <Tooltip title="Copy to clipboard">
-            <IconButton
-              size="small"
-              onClick={handleCopyRawConfig}
-              data-testid="raw-config-copy"
-              sx={{
-                transition: `color ${DURATIONS.NORMAL}ms ${EASING.EASE_OUT}`,
-                color: rawConfigCopied ? tokens.colors.status.success : "text.secondary",
-                "&:hover": {
-                  bgcolor: alpha(tokens.colors.neutral.textSecondary, 0.08),
-                },
-              }}
-            >
-              {rawConfigCopied ? <Check size={18} /> : <Copy size={18} />}
-            </IconButton>
-          </Tooltip>
-        }
-        maxWidth="md"
-      >
-        <Box
-          component="pre"
-          data-testid="raw-config-content"
-          sx={{
-            fontFamily: MONO_FONT,
-            fontSize: "0.8125rem",
-            lineHeight: 1.6,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            bgcolor: isDark ? alpha(tokens.colors.neutral.elevatedSurface, 0.6) : alpha(tokens.colors.neutral.background, 0.8),
-            color: tokens.colors.neutral.textPrimary,
-            p: 2,
-            borderRadius: 2,
-            overflow: "auto",
-            maxHeight: "60vh",
-            border: `1px solid ${tokens.colors.neutral.divider}`,
-          }}
-        >
-          {currentProfile ? JSON.stringify(buildSortedPreviewData(currentProfile), null, 2) : "No profile selected"}
-        </Box>
-      </DialogFrame>
+      {showRawModal && (
+        <Suspense fallback={null}>
+          <LazyRawConfigDialog
+            open={showRawModal}
+            onClose={() => setShowRawModal(false)}
+            profile={currentProfile}
+            isDark={isDark}
+            tokens={tokens}
+            onCopyError={() => addToast("error", "Failed to copy to clipboard")}
+          />
+        </Suspense>
+      )}
 
       <Dialog
         open={showCopyDialog}
@@ -1089,25 +1046,31 @@ export function App() {
         severity="warning"
       />
 
-      <SyncReplacePreviewDialog
-        open={pendingSyncReplace !== null}
-        impact={pendingSyncReplaceImpact}
-        onConfirm={handleSyncReplaceConfirm}
-        onConfirmOne={handleSyncReplaceConfirmOne}
-        onCancel={handleSyncReplaceCancel}
-      />
+      {pendingSyncReplace !== null && (
+        <Suspense fallback={null}>
+          <LazySyncReplacePreviewDialog
+            open
+            impact={pendingSyncReplaceImpact}
+            onConfirm={handleSyncReplaceConfirm}
+            onConfirmOne={handleSyncReplaceConfirmOne}
+            onCancel={handleSyncReplaceCancel}
+          />
+        </Suspense>
+      )}
 
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
-      <ErrorLogPanel
-        entries={errorLogEntries}
-        loading={errorLogLoading}
-        readError={errorLogReadError}
-        hasUnread={errorLogHasUnread}
-        onRefresh={errorLogRefresh}
-        onMarkSeen={errorLogMarkSeen}
-        onToggle={() => setErrorLogExpanded(!errorLogExpanded)}
-        isExpanded={errorLogExpanded}
-      />
+      <Suspense fallback={null}>
+        <LazyErrorLogPanel
+          entries={errorLogEntries}
+          loading={errorLogLoading}
+          readError={errorLogReadError}
+          hasUnread={errorLogHasUnread}
+          onRefresh={errorLogRefresh}
+          onMarkSeen={errorLogMarkSeen}
+          onToggle={() => setErrorLogExpanded((expanded) => !expanded)}
+          isExpanded={errorLogExpanded}
+        />
+      </Suspense>
     </>
   );
 }
@@ -1143,37 +1106,4 @@ function buildModelMap(displayMap: Record<string, { model?: string } | null>): R
     }
   }
   return map;
-}
-
-const PREVIEW_KEY_ORDER = ["$schema", "agents", "categories", "tmux", "git_master"];
-
-function buildSortedPreviewData(profile: ProfileConfigResult): Record<string, unknown> {
-  const merged: Record<string, unknown> = {};
-
-  for (const [key, val] of Object.entries(profile.readonlyTail as Record<string, unknown>)) {
-    if (key !== "agents" && key !== "categories" && key !== "misc") {
-      merged[key] = val;
-    }
-  }
-
-  if (Object.keys(profile.effective.agents).length > 0) {
-    merged.agents = profile.effective.agents;
-  }
-  if (Object.keys(profile.effective.categories).length > 0) {
-    merged.categories = profile.effective.categories;
-  }
-
-  const result: Record<string, unknown> = {};
-  for (const key of PREVIEW_KEY_ORDER) {
-    if (key in merged) {
-      result[key] = merged[key];
-    }
-  }
-  for (const key of Object.keys(merged).sort()) {
-    if (!PREVIEW_KEY_ORDER.includes(key)) {
-      result[key] = merged[key];
-    }
-  }
-
-  return result;
 }

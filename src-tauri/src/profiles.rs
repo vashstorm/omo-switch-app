@@ -102,7 +102,10 @@ pub fn filter_managed_fields(payload: &mut Value) {
         }
     }
 
-    if let Some(categories) = payload.get_mut("categories").and_then(|v| v.as_object_mut()) {
+    if let Some(categories) = payload
+        .get_mut("categories")
+        .and_then(|v| v.as_object_mut())
+    {
         for (_category_id, category_obj) in categories.iter_mut() {
             if let Some(category) = category_obj.as_object_mut() {
                 let keys_to_remove: Vec<String> = category
@@ -246,7 +249,11 @@ fn extract_referenced_models(oh_my_data: &Value) -> Vec<String> {
     let mut models = Vec::new();
     let mut seen = std::collections::HashSet::new();
 
-    fn try_push(models: &mut Vec<String>, seen: &mut std::collections::HashSet<String>, model: &str) {
+    fn try_push(
+        models: &mut Vec<String>,
+        seen: &mut std::collections::HashSet<String>,
+        model: &str,
+    ) {
         if !model.is_empty() && model.contains('/') && !seen.contains(model) {
             seen.insert(model.to_string());
             models.push(model.to_string());
@@ -256,7 +263,9 @@ fn extract_referenced_models(oh_my_data: &Value) -> Vec<String> {
     // Extract from agents.*.model, agents.*.fallback_models[], agents.*.ultrawork.model
     if let Some(agents) = oh_my_data.get("agents").and_then(|v| v.as_object()) {
         for (_, agent_val) in agents {
-            let Some(agent) = agent_val.as_object() else { continue };
+            let Some(agent) = agent_val.as_object() else {
+                continue;
+            };
 
             // agents.*.model
             if let Some(model) = agent.get("model").and_then(|v| v.as_str()) {
@@ -284,7 +293,9 @@ fn extract_referenced_models(oh_my_data: &Value) -> Vec<String> {
     // Extract from categories.*.model, categories.*.fallback_models[]
     if let Some(categories) = oh_my_data.get("categories").and_then(|v| v.as_object()) {
         for (_, cat_val) in categories {
-            let Some(cat) = cat_val.as_object() else { continue };
+            let Some(cat) = cat_val.as_object() else {
+                continue;
+            };
 
             // categories.*.model
             if let Some(model) = cat.get("model").and_then(|v| v.as_str()) {
@@ -1009,7 +1020,12 @@ fn get_profile_internal(
     let disabled_providers = get_disabled_providers(&global_config, profile_id);
 
     // Filter and sort available models
-    let merged_models = merge_available_models(&[global_models, opencode_models, oh_my_models, referenced_models]);
+    let merged_models = merge_available_models(&[
+        global_models,
+        opencode_models,
+        oh_my_models,
+        referenced_models,
+    ]);
     let provider_catalog = build_provider_catalog(&merged_models);
     let filtered_models = filter_models_by_disabled_providers(&merged_models, &disabled_providers);
     let mut available_models: Vec<String> = filtered_models;
@@ -1344,26 +1360,39 @@ fn copy_profile_internal(
 // Tauri Commands
 // ============================================================================
 
+async fn run_profile_task<T, F>(task: F) -> Result<T, AppError>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, AppError> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(task)
+        .await
+        .map_err(|e| AppError::ReadError(format!("Background profile task failed: {}", e)))?
+}
+
 /// List all profiles in the profiles directory.
 #[tauri::command]
 pub async fn list_profiles(app_handle: tauri::AppHandle) -> Result<ListProfilesResponse, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
 
-    // Read global config to get config_path
-    let (global_config, config_path) = read_global_config_with_root(&paths)?;
-    let profiles = if config_path.is_some() {
-        scan_profile_locations_from_config(&paths, &global_config)?
-            .into_iter()
-            .map(|profile| ProfileItem {
-                id: profile.id,
-                label: profile.label,
-            })
-            .collect()
-    } else {
-        scan_profiles_internal(&paths.profiles_dir)?
-    };
+    run_profile_task(move || {
+        // Read global config to get config_path
+        let (global_config, config_path) = read_global_config_with_root(&paths)?;
+        let profiles = if config_path.is_some() {
+            scan_profile_locations_from_config(&paths, &global_config)?
+                .into_iter()
+                .map(|profile| ProfileItem {
+                    id: profile.id,
+                    label: profile.label,
+                })
+                .collect()
+        } else {
+            scan_profiles_internal(&paths.profiles_dir)?
+        };
 
-    Ok(ListProfilesResponse { profiles })
+        Ok(ListProfilesResponse { profiles })
+    })
+    .await
 }
 
 /// Get profile configuration details.
@@ -1373,7 +1402,7 @@ pub async fn get_profile(
     profile_id: String,
 ) -> Result<ProfileConfigResult, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
-    get_profile_internal(&paths, &profile_id)
+    run_profile_task(move || get_profile_internal(&paths, &profile_id)).await
 }
 
 /// Save profile configuration with mtime conflict check.
@@ -1383,12 +1412,15 @@ pub async fn save_profile(
     request: SaveProfileRequest,
 ) -> Result<SaveProfileResponse, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
-    save_profile_internal(
-        &paths,
-        &request.profile_id,
-        &request.payload,
-        request.expected_mtime,
-    )
+    run_profile_task(move || {
+        save_profile_internal(
+            &paths,
+            &request.profile_id,
+            &request.payload,
+            request.expected_mtime,
+        )
+    })
+    .await
 }
 
 /// Update disabled providers for a profile.
@@ -1398,7 +1430,10 @@ pub async fn update_disabled_providers(
     request: UpdateDisabledProvidersRequest,
 ) -> Result<ProfileConfigResult, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
-    update_disabled_providers_internal(&paths, &request.profile_id, &request.disabled_providers)
+    run_profile_task(move || {
+        update_disabled_providers_internal(&paths, &request.profile_id, &request.disabled_providers)
+    })
+    .await
 }
 
 /// Copy a profile to a new target ID.
@@ -1408,7 +1443,8 @@ pub async fn copy_profile(
     request: CopyProfileRequest,
 ) -> Result<CopyProfileResponse, AppError> {
     let paths = AppPaths::from_tauri(&app_handle)?;
-    copy_profile_internal(&paths, &request.source_id, &request.target_id)
+    run_profile_task(move || copy_profile_internal(&paths, &request.source_id, &request.target_id))
+        .await
 }
 
 // ============================================================================
@@ -2235,7 +2271,10 @@ mod tests {
             "categories": {}
         });
         filter_managed_fields(&mut payload);
-        assert!(!payload["agents"]["build"].as_object().unwrap().contains_key("model"));
+        assert!(!payload["agents"]["build"]
+            .as_object()
+            .unwrap()
+            .contains_key("model"));
         assert!(payload["agents"]["build"]["variant"] == "high");
     }
 
@@ -2251,7 +2290,10 @@ mod tests {
             "categories": {}
         });
         filter_managed_fields(&mut payload);
-        assert!(!payload["agents"]["build"].as_object().unwrap().contains_key("variant"));
+        assert!(!payload["agents"]["build"]
+            .as_object()
+            .unwrap()
+            .contains_key("variant"));
         assert!(payload["agents"]["build"]["model"] == "gpt-4");
     }
 
@@ -2270,8 +2312,14 @@ mod tests {
             }
         });
         filter_managed_fields(&mut payload);
-        assert!(!payload["agents"]["build"].as_object().unwrap().contains_key("temperature"));
-        assert!(!payload["categories"]["quick"].as_object().unwrap().contains_key("temperature"));
+        assert!(!payload["agents"]["build"]
+            .as_object()
+            .unwrap()
+            .contains_key("temperature"));
+        assert!(!payload["categories"]["quick"]
+            .as_object()
+            .unwrap()
+            .contains_key("temperature"));
     }
 
     #[test]
@@ -2289,8 +2337,14 @@ mod tests {
             }
         });
         filter_managed_fields(&mut payload);
-        assert!(!payload["agents"]["build"].as_object().unwrap().contains_key("fallback_models"));
-        assert!(!payload["categories"]["default"].as_object().unwrap().contains_key("fallback_models"));
+        assert!(!payload["agents"]["build"]
+            .as_object()
+            .unwrap()
+            .contains_key("fallback_models"));
+        assert!(!payload["categories"]["default"]
+            .as_object()
+            .unwrap()
+            .contains_key("fallback_models"));
     }
 
     #[test]
@@ -2346,7 +2400,9 @@ mod tests {
             }
         });
         filter_managed_fields(&mut payload);
-        let arr = payload["agents"]["build"]["fallback_models"].as_array().unwrap();
+        let arr = payload["agents"]["build"]["fallback_models"]
+            .as_array()
+            .unwrap();
         assert_eq!(arr.len(), 2);
         assert_eq!(arr[0], "gpt-3.5");
     }
@@ -2372,8 +2428,14 @@ mod tests {
         assert!(payload["agents"]["build"]["custom_setting"] == "value");
         assert!(payload["agents"]["build"]["another_key"] == 42);
         assert!(payload["categories"]["quick"]["custom_field"] == true);
-        assert!(!payload["agents"]["build"].as_object().unwrap().contains_key("model"));
-        assert!(!payload["categories"]["quick"].as_object().unwrap().contains_key("variant"));
+        assert!(!payload["agents"]["build"]
+            .as_object()
+            .unwrap()
+            .contains_key("model"));
+        assert!(!payload["categories"]["quick"]
+            .as_object()
+            .unwrap()
+            .contains_key("variant"));
     }
 
     #[test]
@@ -2404,7 +2466,10 @@ mod tests {
         });
         filter_managed_fields(&mut payload);
         assert_eq!(payload["agents"]["build"].as_object().unwrap().len(), 0);
-        assert_eq!(payload["categories"]["default"].as_object().unwrap().len(), 0);
+        assert_eq!(
+            payload["categories"]["default"].as_object().unwrap().len(),
+            0
+        );
     }
 
     #[test]
@@ -2435,7 +2500,10 @@ mod tests {
         });
         filter_managed_fields(&mut payload);
         assert_eq!(payload["agents"]["build"].as_object().unwrap().len(), 8);
-        assert_eq!(payload["categories"]["default"].as_object().unwrap().len(), 6);
+        assert_eq!(
+            payload["categories"]["default"].as_object().unwrap().len(),
+            6
+        );
     }
 
     #[test]
@@ -2464,7 +2532,12 @@ mod tests {
     }
   }
 }"#;
-        create_profile(&profiles_root, "test", r#"{ "agents": {} }"#, Some(initial_content));
+        create_profile(
+            &profiles_root,
+            "test",
+            r#"{ "agents": {} }"#,
+            Some(initial_content),
+        );
 
         let oh_my_path = profiles_root.join("test/oh-my-openagent.jsonc");
         let current_mtime = get_mtime_ms(&oh_my_path);
@@ -2536,7 +2609,12 @@ mod tests {
     }
   }
 }"#;
-        create_profile(&profiles_root, "test", r#"{ "agents": {} }"#, Some(initial_content));
+        create_profile(
+            &profiles_root,
+            "test",
+            r#"{ "agents": {} }"#,
+            Some(initial_content),
+        );
 
         let oh_my_path = profiles_root.join("test/oh-my-openagent.jsonc");
         let current_mtime = get_mtime_ms(&oh_my_path);
@@ -2609,7 +2687,12 @@ mod tests {
     }
   }
 }"#;
-        create_profile(&profiles_root, "test", r#"{ "agents": {} }"#, Some(initial_content));
+        create_profile(
+            &profiles_root,
+            "test",
+            r#"{ "agents": {} }"#,
+            Some(initial_content),
+        );
 
         let oh_my_path = profiles_root.join("test/oh-my-openagent.jsonc");
         let current_mtime = get_mtime_ms(&oh_my_path);
@@ -2653,15 +2736,27 @@ mod tests {
         let saved_content = fs::read_to_string(&oh_my_path).unwrap();
         let saved_value = jsonc_read(&saved_content).unwrap();
 
-        let build_agent = saved_value.get("agents").and_then(|a| a.get("build")).unwrap();
+        let build_agent = saved_value
+            .get("agents")
+            .and_then(|a| a.get("build"))
+            .unwrap();
         assert!(!build_agent.as_object().unwrap().contains_key("model"));
         assert!(!build_agent.as_object().unwrap().contains_key("variant"));
         assert!(!build_agent.as_object().unwrap().contains_key("temperature"));
-        assert!(!build_agent.as_object().unwrap().contains_key("fallback_models"));
+        assert!(!build_agent
+            .as_object()
+            .unwrap()
+            .contains_key("fallback_models"));
 
-        let quick_category = saved_value.get("categories").and_then(|c| c.get("quick")).unwrap();
+        let quick_category = saved_value
+            .get("categories")
+            .and_then(|c| c.get("quick"))
+            .unwrap();
         assert!(!quick_category.as_object().unwrap().contains_key("variant"));
-        assert!(!quick_category.as_object().unwrap().contains_key("temperature"));
+        assert!(!quick_category
+            .as_object()
+            .unwrap()
+            .contains_key("temperature"));
     }
 
     #[test]
@@ -2689,7 +2784,12 @@ mod tests {
     }
   }
 }"#;
-        create_profile(&profiles_root, "test", r#"{ "agents": {} }"#, Some(initial_content));
+        create_profile(
+            &profiles_root,
+            "test",
+            r#"{ "agents": {} }"#,
+            Some(initial_content),
+        );
 
         let oh_my_path = profiles_root.join("test/oh-my-openagent.jsonc");
         let current_mtime = get_mtime_ms(&oh_my_path);
@@ -2733,15 +2833,27 @@ mod tests {
         let saved_content = fs::read_to_string(&oh_my_path).unwrap();
         let saved_value = jsonc_read(&saved_content).unwrap();
 
-        let build_agent = saved_value.get("agents").and_then(|a| a.get("build")).unwrap();
-        assert!(build_agent.as_object().unwrap().contains_key("custom_setting"));
+        let build_agent = saved_value
+            .get("agents")
+            .and_then(|a| a.get("build"))
+            .unwrap();
+        assert!(build_agent
+            .as_object()
+            .unwrap()
+            .contains_key("custom_setting"));
         assert!(build_agent.as_object().unwrap().contains_key("another_key"));
         assert_eq!(build_agent.get("custom_setting").unwrap(), "value");
         assert_eq!(build_agent.get("another_key").unwrap(), 42);
         assert_eq!(build_agent.get("model").unwrap(), "gpt-5");
 
-        let quick_category = saved_value.get("categories").and_then(|c| c.get("quick")).unwrap();
-        assert!(quick_category.as_object().unwrap().contains_key("custom_field"));
+        let quick_category = saved_value
+            .get("categories")
+            .and_then(|c| c.get("quick"))
+            .unwrap();
+        assert!(quick_category
+            .as_object()
+            .unwrap()
+            .contains_key("custom_field"));
         assert_eq!(quick_category.get("custom_field").unwrap(), true);
         assert_eq!(quick_category.get("model").unwrap(), "claude-opus");
     }

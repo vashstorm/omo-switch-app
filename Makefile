@@ -15,10 +15,7 @@ build-tauri:
 # For Tauri app, use: bun run tauri:build
 build-legacy:
 	rm -rf dist
-	mkdir -p dist/web
-	bun build src/web/main.tsx --outdir dist/web --entry-naming='index.[ext]' --asset-naming='index.[ext]' --target=browser
-	mkdir -p dist/web/fonts
-	cp -R src/web/fonts/. dist/web/fonts
+	bun run build:web:assets
 	bun build --compile --target=bun-macos-arm64 src/server/index.ts --outfile dist/omo-switch
 	rm -rf dist/config
 	cp -R config dist/config

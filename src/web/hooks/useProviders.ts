@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import * as apiClient from "../api/client";
 import type { AppError, ModelConfig, CreateModelRequest, UpdateModelRequest } from "../api/types";
 import type { ProvidersListResponse } from "../api/types";
@@ -102,16 +102,18 @@ export function useProviders() {
     fetchProviders();
   }, [fetchProviders]);
 
-  const providersList: ProviderEntry[] = providers
-    ? Object.entries(providers)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([name, models]) => ({
-          name,
-          models: Object.entries(models)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([modelName, config]) => ({ name: modelName, config })),
-        }))
-    : [];
+  const providersList: ProviderEntry[] = useMemo(() => (
+    providers
+      ? Object.entries(providers)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([name, models]) => ({
+            name,
+            models: Object.entries(models)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([modelName, config]) => ({ name: modelName, config })),
+          }))
+      : []
+  ), [providers]);
 
   return {
     providers,

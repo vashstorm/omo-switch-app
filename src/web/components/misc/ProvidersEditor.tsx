@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { memo, useState, useCallback } from "react";
 import {
   Card,
   Box,
@@ -50,7 +50,7 @@ interface ConfirmState {
   onConfirm: () => void;
 }
 
-export function ProvidersEditor({
+function ProvidersEditorComponent({
   providersList,
   loading,
   error,
@@ -488,7 +488,7 @@ export function ProvidersEditor({
                 <Trash2 size={16} />
               </IconButton>
             </Box>
-            <Collapse in={!collapsed}>
+            <Collapse in={!collapsed} unmountOnExit>
               <Box
                 id={`provider-body-${provider.name}`}
                 sx={{
@@ -693,3 +693,5 @@ export function ProvidersEditor({
     </Box>
   );
 }
+
+export const ProvidersEditor = memo(ProvidersEditorComponent);
