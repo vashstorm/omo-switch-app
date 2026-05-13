@@ -18,6 +18,20 @@ import {
 } from "@/web/api/client";
 import type { AppError } from "@/web/api/types";
 
+const emptyProfileConfig = {
+  baseline: { agents: {}, categories: {}, misc: {} },
+  editable: { agents: {}, categories: {}, misc: {} },
+  effective: { agents: {}, categories: {}, misc: {} },
+  readonlyTail: {},
+  rawMisc: {},
+  availableModels: [],
+  availableModelGroups: [],
+  disabledProviders: [],
+  providerCatalog: [],
+  mtime: 12345,
+  errors: [],
+};
+
 describe("API client", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -163,8 +177,10 @@ describe("API client", () => {
       expect(result.profile.id).toBe("new-profile");
       expect(result.profile.label).toBe("new-profile");
       expect(invoke).toHaveBeenCalledWith("copy_profile", {
-        sourceId: "default",
-        targetId: "new-profile",
+        request: {
+          sourceId: "default",
+          targetId: "new-profile",
+        },
       });
     });
 
@@ -200,8 +216,75 @@ describe("API client", () => {
       const result = await updateDisabledProviders("default", ["openai"]);
       expect(result.disabledProviders).toEqual(["openai"]);
       expect(invoke).toHaveBeenCalledWith("update_disabled_providers", {
-        profileId: "default",
-        disabledProviders: ["openai"],
+        request: {
+          profileId: "default",
+          disabledProviders: ["openai"],
+        },
+      });
+    });
+  });
+
+  describe("Tauri request payload contract", () => {
+    it("wraps disabled providers payload in request to match the Rust command argument", async () => {
+      vi.mocked(invoke).mockResolvedValueOnce({
+        ...emptyProfileConfig,
+        disabledProviders: ["openai", "anthropic"],
+      });
+
+      await updateDisabledProviders("work", ["openai", "anthropic"]);
+
+      expect(invoke).toHaveBeenCalledWith("update_disabled_providers", {
+        request: {
+          profileId: "work",
+          disabledProviders: ["openai", "anthropic"],
+        },
+      });
+      expect(invoke).not.toHaveBeenCalledWith(
+        "update_disabled_providers",
+        expect.objectContaining({
+          profileId: "work",
+        })
+      );
+    });
+
+    it("wraps copy profile payload in request to match the Rust command argument", async () => {
+      vi.mocked(invoke).mockResolvedValueOnce({
+        profile: {
+          id: "target",
+          label: "target",
+        },
+      });
+
+      await copyProfile("source", "target");
+
+      expect(invoke).toHaveBeenCalledWith("copy_profile", {
+        request: {
+          sourceId: "source",
+          targetId: "target",
+        },
+      });
+      expect(invoke).not.toHaveBeenCalledWith(
+        "copy_profile",
+        expect.objectContaining({
+          sourceId: "source",
+        })
+      );
+    });
+
+    it("wraps global config updates in request to match the Rust command argument", async () => {
+      vi.mocked(invoke).mockResolvedValueOnce({
+        appZoomPercent: 105,
+      });
+
+      await updateGlobalConfig({ appZoomPercent: 105 });
+
+      expect(invoke).toHaveBeenCalledWith("update_global_config", {
+        request: {
+          appZoomPercent: 105,
+        },
+      });
+      expect(invoke).not.toHaveBeenCalledWith("update_global_config", {
+        appZoomPercent: 105,
       });
     });
   });
@@ -234,30 +317,9 @@ describe("API client", () => {
       expect(result.syncReplaceEnabled).toBe(false);
       expect(result.defaultProfile).toBeNull();
       expect(invoke).toHaveBeenCalledWith("update_global_config", {
-        syncReplaceEnabled: false,
-        defaultProfile: null,
-      });
-    });
-
-    it("retries wrapped request payload when flat payload is rejected", async () => {
-      vi.mocked(invoke)
-        .mockRejectedValueOnce({
-          code: "VALIDATION_ERROR",
-          message: "At least one field must be provided",
-        })
-        .mockResolvedValueOnce({
-          appZoomPercent: 105,
-        });
-
-      const result = await updateGlobalConfig({ appZoomPercent: 105 });
-
-      expect(result.appZoomPercent).toBe(105);
-      expect(invoke).toHaveBeenNthCalledWith(1, "update_global_config", {
-        appZoomPercent: 105,
-      });
-      expect(invoke).toHaveBeenNthCalledWith(2, "update_global_config", {
         request: {
-          appZoomPercent: 105,
+          syncReplaceEnabled: false,
+          defaultProfile: null,
         },
       });
     });

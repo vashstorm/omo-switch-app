@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Trash2, ChevronDown, ChevronRight, Plus, X, AlertCircle } from "lucide-react";
+import { Trash2, ChevronDown, ChevronRight, ChevronUp, Plus, X, AlertCircle } from "lucide-react";
 import { AgentConfig, UltraworkConfig } from "../../hooks/useProfile";
 import { getAgentDescription } from "../../../shared/agent-catalog";
 import { AGENT_MANAGED_FIELDS, ULTRAWORK_MANAGED_FIELDS, filterEmptyFields } from "../../../shared/managed-fields";
@@ -8,13 +8,94 @@ import {
   Card, CardContent, Box, Stack, Typography, TextField, 
   FormControl, InputLabel, Select, MenuItem, IconButton, 
   Collapse, ButtonBase, Chip,
-  Tooltip, SelectChangeEvent, Button
+  Tooltip, SelectChangeEvent, Button, InputAdornment
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import { TRANSITIONS } from "../../theme/motionTokens";
 import { radii } from "../../theme/designTokens";
 import { MONO_FONT } from "../../theme/typography";
 import { GroupedModelPicker } from "../models/GroupedModelPicker";
+
+const compactNumberFieldSx = {
+  minWidth: 0,
+  height: "40px",
+  "& .MuiInputBase-root": { height: "40px" },
+  "& .MuiInputBase-input": {
+    boxSizing: "border-box",
+    color: "text.primary",
+    fontFamily: MONO_FONT,
+    fontSize: "0.8rem",
+    lineHeight: "20px",
+    px: "14px",
+    py: "8.5px",
+    WebkitTextFillColor: "currentColor",
+  },
+  "& .MuiInputBase-inputAdornedEnd": {
+    pr: "4px",
+  },
+  "& .MuiInputBase-adornedEnd": {
+    pr: "6px",
+  },
+  "& .MuiInputLabel-root": {
+    fontSize: "0.75rem",
+    lineHeight: "1.4375em",
+  },
+  "& .MuiInputLabel-root:not(.MuiInputLabel-shrink)": {
+    top: "50%",
+    transform: "translate(14px, -50%) scale(1)",
+  },
+};
+
+interface NumberStepperProps {
+  label: string;
+  testId: string;
+  onIncrement: () => void;
+  onDecrement: () => void;
+}
+
+function NumberStepper({ label, testId, onIncrement, onDecrement }: NumberStepperProps) {
+  const handleMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+  };
+
+  return (
+    <InputAdornment position="end" sx={{ m: 0 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 22,
+          height: 32,
+        }}
+      >
+        <IconButton
+          aria-label={`Increase ${label}`}
+          data-testid={`${testId}-increase`}
+          size="small"
+          tabIndex={-1}
+          onMouseDown={handleMouseDown}
+          onClick={onIncrement}
+          sx={{ width: 22, height: 16, p: 0, borderRadius: 1 }}
+        >
+          <ChevronUp style={{ width: 16, height: 16 }} />
+        </IconButton>
+        <IconButton
+          aria-label={`Decrease ${label}`}
+          data-testid={`${testId}-decrease`}
+          size="small"
+          tabIndex={-1}
+          onMouseDown={handleMouseDown}
+          onClick={onDecrement}
+          sx={{ width: 22, height: 16, p: 0, borderRadius: 1 }}
+        >
+          <ChevronDown style={{ width: 16, height: 16 }} />
+        </IconButton>
+      </Box>
+    </InputAdornment>
+  );
+}
 
 interface AgentCardProps {
   id: string;
@@ -73,6 +154,14 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
     }
   };
 
+  const stepTemperature = (direction: 1 | -1) => {
+    const current = typeof agent.temperature === "number" && !Number.isNaN(agent.temperature)
+      ? agent.temperature
+      : 0;
+    const next = Math.min(1, Math.max(0, Number((current + direction * 0.1).toFixed(1))));
+    handleChange("temperature", next);
+  };
+
   const handlePromptAppendChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleChange("prompt_append", e.target.value);
   };
@@ -85,6 +174,14 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
       const num = parseInt(val, 10);
       handleChange("maxTokens", isNaN(num) ? undefined : num);
     }
+  };
+
+  const stepMaxTokens = (direction: 1 | -1) => {
+    const current = typeof agent.maxTokens === "number" && !Number.isNaN(agent.maxTokens)
+      ? agent.maxTokens
+      : 0;
+    const next = Math.max(1, current + direction * 1000);
+    handleChange("maxTokens", next);
   };
 
   const handleUltraworkChange = (field: keyof UltraworkConfig, value: any) => {
@@ -343,28 +440,26 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                   <TextField
                     id={`agent-temperature-${id}`}
                    label="Temperature"
-                   type="number"
+                   type="text"
                    size="small"
-                   value={agent.temperature ?? ""}
+                   value={agent.temperature === undefined ? "" : String(agent.temperature)}
                    onChange={handleTemperatureChange}
-                    sx={{
-                      minWidth: 0,
-                      height: "40px",
-                      "& .MuiInputBase-root": { height: "40px" },
-                      "& .MuiInputLabel-root": {
-                        fontSize: "0.75rem",
-                        lineHeight: "1.4375em",
-                      },
-                      "& .MuiInputLabel-root:not(.MuiInputLabel-shrink)": {
-                        top: "50%",
-                        transform: "translate(14px, -50%) scale(1)",
-                      },
-                    }}
+                    sx={compactNumberFieldSx}
                     slotProps={{
+                      input: {
+                        endAdornment: (
+                          <NumberStepper
+                            label="temperature"
+                            testId={`agent-temperature-${id}`}
+                            onIncrement={() => stepTemperature(1)}
+                            onDecrement={() => stepTemperature(-1)}
+                          />
+                        ),
+                      },
                       htmlInput: {
-                        min: 0, max: 1, step: 0.1,
+                        inputMode: "decimal",
+                        pattern: "[0-9]*[.]?[0-9]*",
                         "data-testid": `agent-temperature-${id}`,
-                        style: { fontSize: "0.8rem", padding: "8.5px 14px", fontFamily: MONO_FONT, boxSizing: "border-box" }
                       },
                       inputLabel: { style: { fontSize: "0.75rem", lineHeight: "1.4375em" } },
                     }}
@@ -423,28 +518,26 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                    <TextField
                      id={`agent-maxTokens-${id}`}
                      label="Max Tokens"
-                     type="number"
+                     type="text"
                      size="small"
-                     value={agent.maxTokens ?? ""}
+                     value={agent.maxTokens === undefined ? "" : String(agent.maxTokens)}
                      onChange={handleMaxTokensChange}
-                      sx={{
-                        minWidth: 0,
-                        height: "40px",
-                        "& .MuiInputBase-root": { height: "40px" },
-                        "& .MuiInputLabel-root": {
-                          fontSize: "0.75rem",
-                          lineHeight: "1.4375em",
-                        },
-                        "& .MuiInputLabel-root:not(.MuiInputLabel-shrink)": {
-                          top: "50%",
-                          transform: "translate(14px, -50%) scale(1)",
-                        },
-                      }}
+                      sx={compactNumberFieldSx}
                        slotProps={{
+                         input: {
+                           endAdornment: (
+                             <NumberStepper
+                               label="max tokens"
+                               testId={`agent-maxTokens-${id}`}
+                               onIncrement={() => stepMaxTokens(1)}
+                               onDecrement={() => stepMaxTokens(-1)}
+                             />
+                           ),
+                         },
                          htmlInput: {
-                           min: 1, step: 1000,
+                           inputMode: "numeric",
+                           pattern: "[0-9]*",
                            "data-testid": `agent-maxTokens-${id}`,
-                           style: { fontSize: "0.8rem", padding: "8.5px 14px", fontFamily: MONO_FONT, boxSizing: "border-box" }
                          },
                         inputLabel: { style: { fontSize: "0.75rem", lineHeight: "1.4375em" } },
                        }}

@@ -134,8 +134,10 @@ export async function copyProfile(
 
   try {
     return await invoke<CopyProfileResponse>("copy_profile", {
-      sourceId,
-      targetId,
+      request: {
+        sourceId,
+        targetId,
+      },
     });
   } catch (err) {
     throw mapTauriError(err);
@@ -155,8 +157,10 @@ export async function updateDisabledProviders(
 
   try {
     return await invoke<ProfileConfigResult>("update_disabled_providers", {
-      profileId: id,
-      disabledProviders,
+      request: {
+        profileId: id,
+        disabledProviders,
+      },
     });
   } catch (err) {
     throw mapTauriError(err);
@@ -186,15 +190,11 @@ export async function updateGlobalConfig(
   }
 
   try {
-    return await invoke<UpdateGlobalConfigResponse>("update_global_config", updates);
+    return await invoke<UpdateGlobalConfigResponse>("update_global_config", {
+      request: updates,
+    });
   } catch (err) {
-    try {
-      return await invoke<UpdateGlobalConfigResponse>("update_global_config", {
-        request: updates,
-      });
-    } catch (wrappedErr) {
-      throw mapTauriError(wrappedErr);
-    }
+    throw mapTauriError(err);
   }
 }
 

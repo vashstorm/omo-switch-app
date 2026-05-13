@@ -14,10 +14,11 @@ import {
   Collapse,
   SelectChangeEvent,
   ButtonBase,
-  Tooltip
+  Tooltip,
+  InputAdornment
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Trash2, ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 import { CategoryConfig } from "../../hooks/useProfile";
 import type { ModelGroup } from "../../../shared/config/types";
 import { CATEGORY_MANAGED_FIELDS, filterEmptyFields } from "../../../shared/managed-fields";
@@ -25,6 +26,87 @@ import { TRANSITIONS, DURATIONS, EASING } from "../../theme/motionTokens";
 import { lightTokens, darkTokens } from "../../theme/designTokens";
 import { MONO_FONT } from "../../theme/typography";
 import { GroupedModelPicker } from "../models/GroupedModelPicker";
+
+const compactNumberFieldSx = {
+  minWidth: 0,
+  height: "40px",
+  "& .MuiInputBase-root": { height: "40px" },
+  "& .MuiInputBase-input": {
+    boxSizing: "border-box",
+    color: "text.primary",
+    fontFamily: MONO_FONT,
+    fontSize: "0.8rem",
+    lineHeight: "20px",
+    px: "14px",
+    py: "8.5px",
+    WebkitTextFillColor: "currentColor",
+  },
+  "& .MuiInputBase-inputAdornedEnd": {
+    pr: "4px",
+  },
+  "& .MuiInputBase-adornedEnd": {
+    pr: "6px",
+  },
+  "& .MuiInputLabel-root": {
+    fontSize: "0.75rem",
+    lineHeight: "1.4375em",
+  },
+  "& .MuiInputLabel-root:not(.MuiInputLabel-shrink)": {
+    top: "50%",
+    transform: "translate(14px, -50%) scale(1)",
+  },
+};
+
+interface NumberStepperProps {
+  label: string;
+  testId: string;
+  onIncrement: () => void;
+  onDecrement: () => void;
+}
+
+function NumberStepper({ label, testId, onIncrement, onDecrement }: NumberStepperProps) {
+  const handleMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+  };
+
+  return (
+    <InputAdornment position="end" sx={{ m: 0 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 22,
+          height: 32,
+        }}
+      >
+        <IconButton
+          aria-label={`Increase ${label}`}
+          data-testid={`${testId}-increase`}
+          size="small"
+          tabIndex={-1}
+          onMouseDown={handleMouseDown}
+          onClick={onIncrement}
+          sx={{ width: 22, height: 16, p: 0, borderRadius: 1 }}
+        >
+          <ChevronUp style={{ width: 16, height: 16 }} />
+        </IconButton>
+        <IconButton
+          aria-label={`Decrease ${label}`}
+          data-testid={`${testId}-decrease`}
+          size="small"
+          tabIndex={-1}
+          onMouseDown={handleMouseDown}
+          onClick={onDecrement}
+          sx={{ width: 22, height: 16, p: 0, borderRadius: 1 }}
+        >
+          <ChevronDown style={{ width: 16, height: 16 }} />
+        </IconButton>
+      </Box>
+    </InputAdornment>
+  );
+}
 
 interface CategoryCardProps {
   id: string;
@@ -57,6 +139,14 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
     } else {
       handleChange("temperature", parseFloat(val));
     }
+  };
+
+  const stepTemperature = (direction: 1 | -1) => {
+    const current = typeof category.temperature === "number" && !Number.isNaN(category.temperature)
+      ? category.temperature
+      : 0;
+    const next = Math.min(1, Math.max(0, Number((current + direction * 0.1).toFixed(1))));
+    handleChange("temperature", next);
   };
 
   const handleModelPickerChange = (newValue: string | string[]) => {
@@ -265,28 +355,26 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
                 <TextField
                   id={`category-temperature-${id}`}
                   label="Temperature"
-                  type="number"
+                  type="text"
                   size="small"
-                  value={category.temperature ?? ""}
+                  value={category.temperature === undefined ? "" : String(category.temperature)}
                   onChange={handleTemperatureChange}
-                  sx={{
-                    minWidth: 0,
-                    height: "40px",
-                    "& .MuiInputBase-root": { height: "40px" },
-                    "& .MuiInputLabel-root": {
-                      fontSize: "0.75rem",
-                      lineHeight: "1.4375em",
-                    },
-                    "& .MuiInputLabel-root:not(.MuiInputLabel-shrink)": {
-                      top: "50%",
-                      transform: "translate(14px, -50%) scale(1)",
-                    },
-                  }}
+                  sx={compactNumberFieldSx}
                   slotProps={{
+                    input: {
+                      endAdornment: (
+                        <NumberStepper
+                          label="temperature"
+                          testId={`category-temperature-${id}`}
+                          onIncrement={() => stepTemperature(1)}
+                          onDecrement={() => stepTemperature(-1)}
+                        />
+                      ),
+                    },
                     htmlInput: { 
-                      min: 0, max: 1, step: 0.1,
+                      inputMode: "decimal",
+                      pattern: "[0-9]*[.]?[0-9]*",
                       "data-testid": `category-temperature-${id}`,
-                      style: { fontSize: "0.8rem", padding: "8.5px 14px", fontFamily: MONO_FONT, boxSizing: "border-box" }
                     },
                     inputLabel: { style: { fontSize: "0.75rem", lineHeight: "1.4375em" } }
                   }}
