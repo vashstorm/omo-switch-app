@@ -357,9 +357,9 @@ function GroupedModelPickerComponent({
           padding: "0 8px",
           pointerEvents: "none",
           borderRadius: 1,
-          border: `1px solid ${
-            open ? theme.palette.primary.main : theme.palette.divider
-          }`,
+          borderStyle: "solid",
+          borderWidth: open ? 2 : 1,
+          borderColor: open ? theme.palette.primary.main : theme.palette.divider,
           transition: "border-color 150ms cubic-bezier(0.4, 0, 0.2, 1)",
           overflow: "hidden",
           minWidth: "0%",
@@ -375,7 +375,6 @@ function GroupedModelPickerComponent({
               display: "block",
               padding: 0,
               height: 11,
-              fontSize: "0.75em",
               visibility: "hidden",
               maxWidth: "100%",
               whiteSpace: "nowrap",
@@ -383,7 +382,17 @@ function GroupedModelPickerComponent({
               lineHeight: "11px",
             }}
           >
-            <span style={{ paddingLeft: 5, paddingRight: 5, display: "inline-block" }}>
+            <span
+              style={{
+                display: "inline-block",
+                paddingLeft: 5,
+                paddingRight: 5,
+                fontSize: "0.5625rem",
+                fontWeight: 500,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+              }}
+            >
               {label}
             </span>
           </Box>
@@ -397,6 +406,9 @@ function GroupedModelPickerComponent({
             top: -7,
             left: 14,
             fontSize: "0.75rem",
+            fontWeight: 500,
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
             color: open ? "primary.main" : "text.secondary",
             zIndex: 1,
             pointerEvents: "none",

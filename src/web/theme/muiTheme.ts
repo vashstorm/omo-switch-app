@@ -164,6 +164,18 @@ function buildComponentOverrides(
         },
       },
     },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        notchedOutline: {
+          "& legend > span": {
+            fontSize: "0.5625rem",
+            fontWeight: 500,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          },
+        },
+      },
+    },
     MuiSelect: {
       styleOverrides: {
         root: {
