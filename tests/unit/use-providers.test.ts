@@ -22,22 +22,8 @@ const mockDeleteProvider = vi.mocked(apiClient.deleteProvider);
 
 const mockProvidersResponse = {
   providers: {
-    anthropic: {
-      "claude-opus-4-5": {
-        type: "anthropic",
-        maxTokens: 64000,
-      },
-      "claude-sonnet-4": {
-        type: "anthropic",
-        maxTokens: 32000,
-      },
-    },
-    openai: {
-      "gpt-4": {
-        type: "openai",
-        maxTokens: 8192,
-      },
-    },
+    anthropic: ["claude-opus-4-5", "claude-sonnet-4"],
+    openai: ["gpt-4"],
   },
 };
 
@@ -102,7 +88,7 @@ describe("useProviders", () => {
       mockGetProviders
         .mockResolvedValueOnce({ providers: {} })
         .mockResolvedValueOnce({
-          providers: { "custom-provider": {} },
+          providers: { "custom-provider": [] },
         });
 
       mockCreateProvider.mockResolvedValueOnce({ success: true });
@@ -148,12 +134,10 @@ describe("useProviders", () => {
   describe("createModel", () => {
     it("reloads after successful creation", async () => {
       mockGetProviders
-        .mockResolvedValueOnce({ providers: { openai: {} } })
+        .mockResolvedValueOnce({ providers: { openai: [] } })
         .mockResolvedValueOnce({
           providers: {
-            openai: {
-              "gpt-5": { maxTokens: 128000 },
-            },
+            openai: ["gpt-5"],
           },
         });
 
@@ -168,7 +152,6 @@ describe("useProviders", () => {
       await act(async () => {
         await result.current.createModel("openai", {
           name: "gpt-5",
-          maxTokens: 128000,
         });
       });
 
@@ -176,7 +159,7 @@ describe("useProviders", () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.providers?.openai["gpt-5"]).toBeDefined();
+      expect(result.current.providers?.openai).toContain("gpt-5");
       expect(mockGetProviders).toHaveBeenCalledTimes(2);
     });
   });
@@ -185,10 +168,10 @@ describe("useProviders", () => {
     it("reloads after successful deletion", async () => {
       mockGetProviders
         .mockResolvedValueOnce({
-          providers: { openai: { "gpt-4": { maxTokens: 8192 } } },
+          providers: { openai: ["gpt-4"] },
         })
         .mockResolvedValueOnce({
-          providers: { openai: {} },
+          providers: { openai: [] },
         });
 
       mockDeleteModel.mockResolvedValueOnce({ success: true });
@@ -207,7 +190,7 @@ describe("useProviders", () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.providers?.openai["gpt-4"]).toBeUndefined();
+      expect(result.current.providers?.openai).not.toContain("gpt-4");
       expect(mockGetProviders).toHaveBeenCalledTimes(2);
     });
   });
@@ -216,7 +199,7 @@ describe("useProviders", () => {
     it("reloads after successful deletion", async () => {
       mockGetProviders
         .mockResolvedValueOnce({
-          providers: { openai: { "gpt-4": { maxTokens: 8192 } } },
+          providers: { openai: ["gpt-4"] },
         })
         .mockResolvedValueOnce({
           providers: {},
@@ -247,10 +230,10 @@ describe("useProviders", () => {
     it("reloads after successful update", async () => {
       mockGetProviders
         .mockResolvedValueOnce({
-          providers: { openai: { "gpt-4": { maxTokens: 8192 } } },
+          providers: { openai: ["gpt-4"] },
         })
         .mockResolvedValueOnce({
-          providers: { openai: { "gpt-4": { maxTokens: 16384 } } },
+          providers: { openai: ["gpt-4"] },
         });
 
       mockUpdateModel.mockResolvedValueOnce({ success: true });
@@ -271,7 +254,7 @@ describe("useProviders", () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.providers?.openai["gpt-4"].maxTokens).toBe(16384);
+      expect(result.current.providers?.openai).toContain("gpt-4");
       expect(mockGetProviders).toHaveBeenCalledTimes(2);
     });
   });

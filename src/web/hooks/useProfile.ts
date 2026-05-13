@@ -80,14 +80,16 @@ export function useProfile(profileId: string | null) {
     }
   }, []);
 
-  const fetchProfileDetail = useCallback(async (id: string) => {
+  const fetchProfileDetail = useCallback(async (id: string, background = false) => {
     const requestId = ++requestIdRef.current;
     try {
-      setLoading(true);
-      setIsSwitching(true);
+      if (!background) {
+        setLoading(true);
+        setIsSwitching(true);
+        setCurrentProfile(null);
+        setCurrentProfileId(null);
+      }
       setError(null);
-      setCurrentProfile(null);
-      setCurrentProfileId(null);
       const data = await apiClient.getProfile(id);
       if (requestId === requestIdRef.current) {
         setCurrentProfile(data);
@@ -99,7 +101,7 @@ export function useProfile(profileId: string | null) {
         setError(appError.message);
       }
     } finally {
-      if (requestId === requestIdRef.current) {
+      if (requestId === requestIdRef.current && !background) {
         setLoading(false);
         setIsSwitching(false);
       }
@@ -173,7 +175,7 @@ export function useProfile(profileId: string | null) {
     copyProfile,
     updateDisabledProviders,
     refreshProfiles: fetchProfiles,
-    reloadProfile: () => profileId ? fetchProfileDetail(profileId) : undefined,
+    reloadProfile: (background = false) => profileId ? fetchProfileDetail(profileId, background) : undefined,
     setError
   };
 }

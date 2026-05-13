@@ -5,30 +5,18 @@
   ],
   "log_path": "/Users/panh/devop/tshouse/omo-switch/logs/",
   "providers": {
-    "openai": {
-      "gpt-5.4": {
-        "maxTokens": 64000
-      },
-      "gpt-5.3-codex": {
-        "maxTokens": 64000
-      }
-    },
-    "aliyun-cp": {
-      "kimi-k2.5": {
-        "maxTokens": 64000
-      },
-      "glm-5": {
-        "maxTokens": 64000
-      },
-      "qwen3.5-plus": {
-        "maxTokens": 1000000
-      }
-    },
-    "kimi-for-coding": {
-      "k2p5": {
-        "maxTokens": 64000
-      }
-    }
+    "openai": [
+      "gpt-5.4",
+      "gpt-5.3-codex"
+    ],
+    "aliyun-cp": [
+      "kimi-k2.5",
+      "glm-5",
+      "qwen3.5-plus"
+    ],
+    "kimi-for-coding": [
+      "k2p5"
+    ]
   },
   "ui_preferences": {
     "sync_replace_enabled": true,

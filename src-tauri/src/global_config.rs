@@ -2,8 +2,8 @@
 
 use crate::contracts::{
     CreateModelRequest, CreateProviderRequest, DeleteResponse, ErrorLogsResponse,
-    GlobalConfigResponse, ModelConfig, ProviderModelResponse, ProvidersListResponse,
-    UpdateGlobalConfigRequest, UpdateGlobalConfigResponse, UpdateModelRequest,
+    GlobalConfigResponse, ProviderModelResponse, ProvidersListResponse, UpdateGlobalConfigRequest,
+    UpdateGlobalConfigResponse, UpdateModelRequest,
 };
 use crate::errors::AppError;
 use crate::jsonc_edit::{jsonc_modify, read_jsonc_file, write_jsonc_file};
@@ -246,8 +246,6 @@ fn get_error_logs_impl(paths: &AppPaths) -> ErrorLogsResponse {
     }
 }
 
-const DEFAULT_MAX_TOKENS: u32 = 64000;
-
 fn validate_provider_name(name: &str) -> Result<(), AppError> {
     if name.is_empty() {
         return Err(AppError::ValidationError(
@@ -291,24 +289,13 @@ fn get_providers_impl(paths: &AppPaths) -> Result<ProvidersListResponse, AppErro
                         .unwrap()
                         .iter()
                         .map(|(provider_name, provider_value)| {
-                            let provider_models = if provider_value.is_object() {
-                                provider_value
-                                    .as_object()
-                                    .unwrap()
+                            let provider_models = if let Some(models_array) = provider_value.as_array() {
+                                models_array
                                     .iter()
-                                    .map(|(model_name, model_value)| {
-                                        let model_config =
-                                            serde_json::from_value(model_value.clone())
-                                                .unwrap_or_else(|_| ModelConfig {
-                                                    model_type: None,
-                                                    max_tokens: None,
-                                                    extra: std::collections::HashMap::new(),
-                                                });
-                                        (model_name.clone(), model_config)
-                                    })
+                                    .filter_map(|model_value| model_value.as_str().map(String::from))
                                     .collect()
                             } else {
-                                std::collections::HashMap::new()
+                                Vec::new()
                             };
                             (provider_name.clone(), provider_models)
                         })
@@ -350,7 +337,7 @@ fn create_provider_impl(
     content = jsonc_modify(
         &content,
         &["providers", &request.name],
-        Some(&Value::Object(serde_json::Map::new())),
+        Some(&Value::Array(Vec::new())),
     )
     .map_err(|e| AppError::WriteError(e.message()))?;
 
@@ -369,33 +356,31 @@ fn create_model_impl(
     validate_model_name(&request.name)?;
 
     let config = read_jsonc_file(&paths.config_file)?;
-    if config
+    let provider = config
         .get("providers")
-        .and_then(|p| p.get(&provider_name))
-        .and_then(|p| p.get(&request.name))
-        .is_some()
-    {
+        .and_then(|p| p.get(&provider_name));
+
+    let mut models = match provider {
+        Some(Value::Array(items)) => items
+            .iter()
+            .filter_map(|item| item.as_str().map(String::from))
+            .collect::<Vec<_>>(),
+        Some(_) => {
+            return Err(AppError::ValidationError(format!(
+                "Provider '{}' must be an array of model names",
+                provider_name
+            )));
+        }
+        None => Vec::new(),
+    };
+
+    if models.iter().any(|model| model == &request.name) {
         return Err(AppError::ValidationError(format!(
             "Model '{}' already exists under provider '{}'",
             request.name, provider_name
         )));
     }
-
-    let max_tokens = request.max_tokens.unwrap_or(DEFAULT_MAX_TOKENS);
-
-    let mut model_json = serde_json::Map::new();
-    if max_tokens > 0 {
-        model_json.insert(
-            "maxTokens".to_string(),
-            Value::Number(serde_json::Number::from(max_tokens)),
-        );
-    }
-    for (key, value) in &request.extra {
-        model_json.insert(key.clone(), value.clone());
-    }
-    if let Some(model_type) = request.extra.get("type") {
-        model_json.insert("type".to_string(), model_type.clone());
-    }
+    models.push(request.name);
 
     let mut content = if paths.config_file.exists() {
         fs::read_to_string(&paths.config_file).unwrap_or_else(|_| "{}".to_string())
@@ -405,8 +390,8 @@ fn create_model_impl(
 
     content = jsonc_modify(
         &content,
-        &["providers", &provider_name, &request.name],
-        Some(&Value::Object(model_json)),
+        &["providers", &provider_name],
+        Some(&Value::Array(models.into_iter().map(Value::String).collect())),
     )
     .map_err(|e| AppError::WriteError(e.message()))?;
 
@@ -426,56 +411,28 @@ fn update_model_impl(
     validate_model_name(&model_name)?;
 
     let config = read_jsonc_file(&paths.config_file)?;
-    let existing_model = config
+    let provider = config
         .get("providers")
-        .and_then(|p| p.get(&provider_name))
-        .and_then(|p| p.get(&model_name));
+        .and_then(|p| p.get(&provider_name));
 
-    if existing_model.is_none() {
+    let Some(Value::Array(models)) = provider else {
+        return Err(AppError::ValidationError(format!(
+            "Provider '{}' must be an array of model names",
+            provider_name
+        )));
+    };
+
+    if !models.iter().any(|model| model.as_str() == Some(&model_name)) {
         return Err(AppError::ValidationError(format!(
             "Model '{}' does not exist under provider '{}'",
             model_name, provider_name
         )));
     }
 
-    let mut merged_json = if let Some(existing) = existing_model {
-        if existing.is_object() {
-            existing.as_object().unwrap().clone()
-        } else {
-            serde_json::Map::new()
-        }
-    } else {
-        serde_json::Map::new()
-    };
-
-    if let Some(max_tokens) = request.max_tokens {
-        merged_json.insert(
-            "maxTokens".to_string(),
-            Value::Number(serde_json::Number::from(max_tokens)),
-        );
-    }
-
-    for (key, value) in &request.extra {
-        merged_json.insert(key.clone(), value.clone());
-    }
-
-    let mut content = if paths.config_file.exists() {
-        fs::read_to_string(&paths.config_file).unwrap_or_else(|_| "{}".to_string())
-    } else {
-        "{}".to_string()
-    };
-
-    content = jsonc_modify(
-        &content,
-        &["providers", &provider_name, &model_name],
-        Some(&Value::Object(merged_json)),
-    )
-    .map_err(|e| AppError::WriteError(e.message()))?;
-
-    write_jsonc_file(&paths.config_file, &content)
-        .map_err(|e| AppError::WriteError(e.message()))?;
-
-    Ok(ProviderModelResponse { success: true })
+    let _ = request;
+    Err(AppError::ValidationError(
+        "Array-format providers do not support per-model configuration updates".to_string(),
+    ))
 }
 
 fn delete_model_impl(
@@ -486,14 +443,34 @@ fn delete_model_impl(
     validate_provider_name(&provider_name)?;
     validate_model_name(&model_name)?;
 
+    let config = read_jsonc_file(&paths.config_file)?;
+    let provider = config
+        .get("providers")
+        .and_then(|p| p.get(&provider_name));
+
+    let Some(Value::Array(models)) = provider else {
+        return Ok(DeleteResponse { success: true });
+    };
+
+    let next_models = models
+        .iter()
+        .filter_map(|item| item.as_str())
+        .filter(|item| *item != model_name)
+        .map(|item| Value::String(item.to_string()))
+        .collect::<Vec<_>>();
+
     let mut content = if paths.config_file.exists() {
         fs::read_to_string(&paths.config_file).unwrap_or_else(|_| "{}".to_string())
     } else {
         "{}".to_string()
     };
 
-    content = jsonc_modify(&content, &["providers", &provider_name, &model_name], None)
-        .map_err(|e| AppError::WriteError(e.message()))?;
+    content = jsonc_modify(
+        &content,
+        &["providers", &provider_name],
+        Some(&Value::Array(next_models)),
+    )
+    .map_err(|e| AppError::WriteError(e.message()))?;
 
     write_jsonc_file(&paths.config_file, &content)
         .map_err(|e| AppError::WriteError(e.message()))?;
@@ -1067,6 +1044,25 @@ mod tests {
     }
 
     #[test]
+    fn test_get_providers_accepts_array_model_catalog() {
+        let temp = TempDir::new().unwrap();
+        let paths = create_test_paths(&temp);
+
+        fs::create_dir_all(paths.config_file.parent().unwrap()).unwrap();
+        fs::write(
+            &paths.config_file,
+            r#"{"providers":{"openai":["gpt-5.4","gpt-5.3-codex"]}}"#,
+        )
+        .unwrap();
+
+        let result = get_providers_impl(&paths).unwrap();
+        let openai = result.providers.get("openai").unwrap();
+
+        assert!(openai.contains(&"gpt-5.4".to_string()));
+        assert!(openai.contains(&"gpt-5.3-codex".to_string()));
+    }
+
+    #[test]
     fn test_create_provider_fresh_config() {
         let temp = TempDir::new().unwrap();
         let paths = create_test_paths(&temp);
@@ -1081,11 +1077,14 @@ mod tests {
         assert!(result.success);
 
         let config = read_jsonc_file(&paths.config_file).unwrap();
-        assert!(config
+        assert_eq!(config
             .get("providers")
             .unwrap()
             .get("custom-provider")
-            .is_some());
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .len(), 0);
     }
 
     #[test]
@@ -1094,7 +1093,7 @@ mod tests {
         let paths = create_test_paths(&temp);
 
         fs::create_dir_all(paths.config_file.parent().unwrap()).unwrap();
-        let content = r#"{"providers":{"anthropic":{}}}"#;
+        let content = r#"{"providers":{"anthropic":[]}}"#;
         fs::write(&paths.config_file, content).unwrap();
 
         let request = CreateProviderRequest {
@@ -1110,14 +1109,7 @@ mod tests {
         let paths = create_test_paths(&temp);
 
         fs::create_dir_all(paths.config_file.parent().unwrap()).unwrap();
-        let content = r#"{
-      "providers": {
-        "anthropic": {
-          "claude-opus-4-5": {"maxTokens": 64000},
-          "claude-sonnet-4": {"maxTokens": 32000}
-        }
-      }
-    }"#;
+        let content = r#"{"providers":{"anthropic":["claude-opus-4-5","claude-sonnet-4"]}}"#;
         fs::write(&paths.config_file, content).unwrap();
 
         let result = delete_model_impl(
@@ -1130,8 +1122,9 @@ mod tests {
 
         let config = read_jsonc_file(&paths.config_file).unwrap();
         let provider = config.get("providers").unwrap().get("anthropic").unwrap();
-        assert!(provider.get("claude-opus-4-5").is_none());
-        assert!(provider.get("claude-sonnet-4").is_some());
+        let models = provider.as_array().unwrap();
+        assert!(!models.iter().any(|item| item.as_str() == Some("claude-opus-4-5")));
+        assert!(models.iter().any(|item| item.as_str() == Some("claude-sonnet-4")));
     }
 
     #[test]
@@ -1142,8 +1135,8 @@ mod tests {
         fs::create_dir_all(paths.config_file.parent().unwrap()).unwrap();
         let content = r#"{
       "providers": {
-        "anthropic": {},
-        "openai": {}
+        "anthropic": [],
+        "openai": []
       },
       "default_profile": "work"
     }"#;
@@ -1180,14 +1173,14 @@ mod tests {
         create_model_impl(&paths, "custom-provider".to_string(), model_request).unwrap();
 
         let config = read_jsonc_file(&paths.config_file).unwrap();
-        let model = config
+        let models = config
             .get("providers")
             .unwrap()
             .get("custom-provider")
             .unwrap()
-            .get("custom-model")
+            .as_array()
             .unwrap();
-        assert_eq!(model.get("maxTokens").unwrap().as_u64().unwrap(), 128000);
+        assert!(models.iter().any(|item| item.as_str() == Some("custom-model")));
     }
 
     #[test]
@@ -1196,7 +1189,7 @@ mod tests {
         let paths = create_test_paths(&temp);
 
         fs::create_dir_all(paths.config_file.parent().unwrap()).unwrap();
-        let content = r#"{"providers":{"anthropic":{}}}"#;
+        let content = r#"{"providers":{"anthropic":[]}}"#;
         fs::write(&paths.config_file, content).unwrap();
 
         let request = CreateModelRequest {
@@ -1207,57 +1200,36 @@ mod tests {
         create_model_impl(&paths, "anthropic".to_string(), request).unwrap();
 
         let config = read_jsonc_file(&paths.config_file).unwrap();
-        let model = config
+        let models = config
             .get("providers")
             .unwrap()
             .get("anthropic")
             .unwrap()
-            .get("claude-new")
+            .as_array()
             .unwrap();
-        assert_eq!(model.get("maxTokens").unwrap().as_u64().unwrap(), 64000);
+        assert!(models.iter().any(|item| item.as_str() == Some("claude-new")));
     }
 
     #[test]
-    fn test_update_model_preserves_unknown_fields() {
+    fn test_update_model_rejects_array_format_config_updates() {
         let temp = TempDir::new().unwrap();
         let paths = create_test_paths(&temp);
 
         fs::create_dir_all(paths.config_file.parent().unwrap()).unwrap();
-        let content = r#"{
-      "providers": {
-        "anthropic": {
-          "claude-opus-4-5": {
-            "maxTokens": 64000,
-            "customField": "customValue",
-            "apiBase": "https://custom.api"
-          }
-        }
-      }
-    }"#;
+        let content = r#"{"providers":{"anthropic":["claude-opus-4-5"]}}"#;
         fs::write(&paths.config_file, content).unwrap();
 
         let request = UpdateModelRequest {
             max_tokens: Some(128000),
             extra: std::collections::HashMap::new(),
         };
-        update_model_impl(
+        let result = update_model_impl(
             &paths,
             "anthropic".to_string(),
             "claude-opus-4-5".to_string(),
             request,
-        )
-        .unwrap();
+        );
 
-        let config = read_jsonc_file(&paths.config_file).unwrap();
-        let model = config
-            .get("providers")
-            .unwrap()
-            .get("anthropic")
-            .unwrap()
-            .get("claude-opus-4-5")
-            .unwrap();
-        assert_eq!(model.get("maxTokens").unwrap().as_u64().unwrap(), 128000);
-        assert!(model.get("customField").is_some());
-        assert!(model.get("apiBase").is_some());
+        assert!(result.is_err());
     }
 }

@@ -17,7 +17,6 @@ import {
   deleteProvider,
   writeModel,
   deleteModel,
-  updateModelConfig,
 } from "../../shared/config-writer/global-config-writer";
 import { scanProfiles } from "../../shared/profiles/scanner";
 import { loggers } from "../../shared/logger";
@@ -59,18 +58,14 @@ const CreateProviderSchema = z.object({
 });
 
 const UpdateProviderSchema = z.object({
-  models: z.record(z.string(), z.any()),
+  models: z.array(z.string()),
 });
 
 const CreateModelSchema = z.object({
   name: z.string().min(1, "Model name must not be empty").refine((v) => !v.includes("/"), "Model name must not contain '/'"),
-  maxTokens: z.number().int().min(0).optional(),
-  type: z.string().optional(),
-}).catchall(z.any());
+}).strict();
 
-const UpdateModelConfigSchema = z.object({
-  maxTokens: z.number().int().min(0).optional(),
-}).catchall(z.any());
+const UpdateModelConfigSchema = z.object({}).strict();
 
 export function registerGlobalConfigRoute(
   app: Hono,
@@ -245,12 +240,12 @@ export function registerGlobalConfigRoute(
         return c.json(jsonError("DUPLICATE", `Provider "${parsed.data.name}" already exists`), 409);
       }
 
-      await writeProvider(options.configPath, parsed.data.name, {});
+      await writeProvider(options.configPath, parsed.data.name, []);
       loggers.serverRoutesGlobalConfig.info(
         { operation: "provider.created", name: parsed.data.name },
         `Provider "${parsed.data.name}" created successfully`
       );
-      return c.json({ name: parsed.data.name, models: {} }, 201);
+      return c.json({ name: parsed.data.name, models: [] }, 201);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to create provider";
       loggers.serverRoutesGlobalConfig.error(
@@ -362,18 +357,14 @@ export function registerGlobalConfigRoute(
     }
 
     try {
-      const { name, maxTokens, ...rest } = parsed.data;
-      const config: Record<string, unknown> = { ...rest };
-      if (maxTokens !== undefined) {
-        config.maxTokens = maxTokens;
-      }
+      const { name } = parsed.data;
 
-      await writeModel(options.configPath, providerName, name, config, { overwrite: false });
+      await writeModel(options.configPath, providerName, name, { overwrite: false });
       loggers.serverRoutesGlobalConfig.info(
         { operation: "model.created", provider: providerName, name },
         `Model "${name}" created under provider "${providerName}"`
       );
-      return c.json({ name, ...config }, 201);
+      return c.json({ name }, 201);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to create model";
       if (message.includes("already exists")) {
@@ -415,25 +406,16 @@ export function registerGlobalConfigRoute(
 
     try {
       const config = await readGlobalConfig(options.configPath);
-      const providers = (config.providers as Record<string, Record<string, unknown>> | undefined) ?? {};
+      const providers = config.providers ?? {};
       const provider = providers[providerName];
       if (provider === undefined) {
         return c.json(jsonError("NOT_FOUND", `Provider "${providerName}" not found`), 404);
       }
-      if (provider[modelName] === undefined) {
+      if (!provider.includes(modelName)) {
         return c.json(jsonError("NOT_FOUND", `Model "${modelName}" not found under provider "${providerName}"`), 404);
       }
 
-      await updateModelConfig(options.configPath, providerName, modelName, parsed.data);
-      loggers.serverRoutesGlobalConfig.info(
-        { operation: "model.updated", provider: providerName, name: modelName },
-        `Model "${modelName}" under provider "${providerName}" updated successfully`
-      );
-
-      const updatedConfig = await readGlobalConfig(options.configPath);
-      const updatedProviders = (updatedConfig.providers as Record<string, Record<string, unknown>> | undefined) ?? {};
-      const updatedProvider = updatedProviders[providerName];
-      return c.json({ name: modelName, ...(updatedProvider?.[modelName] as Record<string, unknown> ?? {}) });
+      return c.json(jsonError("VALIDATION_ERROR", "Array-format providers do not support per-model configuration updates"), 400);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to update model";
       loggers.serverRoutesGlobalConfig.error(
@@ -452,11 +434,11 @@ export function registerGlobalConfigRoute(
     try {
       const config = await readGlobalConfig(options.configPath);
       const providers = config.providers ?? {};
-      const provider = providers[providerName] as Record<string, unknown> | undefined;
+      const provider = providers[providerName];
       if (provider === undefined) {
         return c.json(jsonError("NOT_FOUND", `Provider "${providerName}" not found`), 404);
       }
-      if (provider[modelName] === undefined) {
+      if (!provider.includes(modelName)) {
         return c.json(jsonError("NOT_FOUND", `Model "${modelName}" not found under provider "${providerName}"`), 404);
       }
 

@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { applyEdits, modify, parse } from "jsonc-parser";
 
-import { resolveGlobalConfigPath, validateMaxTokens, validateModelName, validateProviderName } from "../config/global-config";
+import { resolveGlobalConfigPath, validateModelName, validateProviderName } from "../config/global-config";
 
 const MODIFY_OPTIONS = {
   formattingOptions: {
@@ -74,7 +74,7 @@ export async function writeDisabledProviders(
 export async function writeProvider(
   configPath: string | undefined,
   providerName: string,
-  models: Record<string, unknown>,
+  models: string[],
 ): Promise<void> {
   validateProviderName(providerName);
   return writeGlobalConfigValue(configPath, ["providers", providerName], models);
@@ -92,66 +92,12 @@ export async function writeModel(
   configPath: string | undefined,
   providerName: string,
   modelName: string,
-  config: Record<string, unknown>,
   opts?: { overwrite?: boolean },
 ): Promise<void> {
   validateProviderName(providerName);
   validateModelName(modelName);
 
   const overwrite = opts?.overwrite ?? true;
-
-  if (!overwrite) {
-    const resolvedPath = resolveGlobalConfigPath(configPath);
-    let existingContent = "{}";
-    try {
-      existingContent = await fs.readFile(resolvedPath, "utf-8");
-    } catch (error) {
-      const typedError = error as NodeJS.ErrnoException;
-      if (typedError.code !== "ENOENT") {
-        throw new Error(`Failed to read config file: ${typedError.message}`);
-      }
-    }
-
-    const existing = parse(existingContent) as Record<string, unknown>;
-    const providers = existing?.providers as Record<string, unknown> | undefined;
-    const provider = providers?.[providerName] as Record<string, unknown> | undefined;
-    if (provider?.[modelName] !== undefined) {
-      throw new Error(`Model "${modelName}" already exists under provider "${providerName}"`);
-    }
-  }
-
-  const modelConfig: Record<string, unknown> = { ...config };
-  if (modelConfig.maxTokens !== undefined) {
-    validateMaxTokens(modelConfig.maxTokens);
-  } else {
-    modelConfig.maxTokens = 64000;
-  }
-
-  return writeGlobalConfigValue(configPath, ["providers", providerName, modelName], modelConfig);
-}
-
-export async function deleteModel(
-  configPath: string | undefined,
-  providerName: string,
-  modelName: string,
-): Promise<void> {
-  validateProviderName(providerName);
-  validateModelName(modelName);
-  return writeGlobalConfigValue(configPath, ["providers", providerName, modelName], undefined);
-}
-
-export async function updateModelConfig(
-  configPath: string | undefined,
-  providerName: string,
-  modelName: string,
-  updates: Record<string, unknown>,
-): Promise<void> {
-  validateProviderName(providerName);
-  validateModelName(modelName);
-
-  if (updates.maxTokens !== undefined) {
-    validateMaxTokens(updates.maxTokens);
-  }
 
   const resolvedPath = resolveGlobalConfigPath(configPath);
   let existingContent = "{}";
@@ -165,11 +111,100 @@ export async function updateModelConfig(
   }
 
   const existing = parse(existingContent) as Record<string, unknown>;
-  const providers = (existing?.providers ?? {}) as Record<string, unknown>;
-  const provider = (providers[providerName] ?? {}) as Record<string, unknown>;
-  const modelConfig = (provider[modelName] ?? {}) as Record<string, unknown>;
+  const providers = existing?.providers as Record<string, unknown> | undefined;
+  const provider = providers?.[providerName] as unknown[] | Record<string, unknown> | undefined;
+  const isObjectProvider = provider !== undefined && provider !== null && !Array.isArray(provider) && typeof provider === "object";
 
-  const merged = { ...modelConfig, ...updates };
+  if (!overwrite) {
+    const exists = Array.isArray(provider)
+      ? provider.includes(modelName)
+      : isObjectProvider && Object.prototype.hasOwnProperty.call(provider, modelName);
+    if (exists) {
+      throw new Error(`Model "${modelName}" already exists under provider "${providerName}"`);
+    }
+  }
+
+  if (isObjectProvider) {
+    return writeGlobalConfigValue(
+      configPath,
+      ["providers", providerName, modelName],
+      {},
+    );
+  }
+
+  const newModels = Array.isArray(provider) ? [...provider] : [];
+  if (!newModels.includes(modelName)) {
+    newModels.push(modelName);
+  }
+
+  return writeGlobalConfigValue(configPath, ["providers", providerName], newModels);
+}
+
+export async function deleteModel(
+  configPath: string | undefined,
+  providerName: string,
+  modelName: string,
+): Promise<void> {
+  validateProviderName(providerName);
+  validateModelName(modelName);
+
+  const resolvedPath = resolveGlobalConfigPath(configPath);
+  let existingContent = "{}";
+  try {
+    existingContent = await fs.readFile(resolvedPath, "utf-8");
+  } catch (error) {
+    const typedError = error as NodeJS.ErrnoException;
+    if (typedError.code !== "ENOENT") {
+      throw new Error(`Failed to read config file: ${typedError.message}`);
+    }
+  }
+
+  const existing = parse(existingContent) as Record<string, unknown>;
+  const providers = existing?.providers as Record<string, unknown> | undefined;
+  const provider = providers?.[providerName] as unknown[] | undefined;
+
+  if (!Array.isArray(provider)) {
+    return;
+  }
+
+  const newModels = provider.filter((item) => item !== modelName);
+  return writeGlobalConfigValue(configPath, ["providers", providerName], newModels);
+}
+
+export async function updateModelConfig(
+  configPath: string | undefined,
+  providerName: string,
+  modelName: string,
+  _updates: Record<string, unknown>,
+): Promise<void> {
+  validateProviderName(providerName);
+  validateModelName(modelName);
+
+  const resolvedPath = resolveGlobalConfigPath(configPath);
+  let existingContent = "{}";
+  try {
+    existingContent = await fs.readFile(resolvedPath, "utf-8");
+  } catch (error) {
+    const typedError = error as NodeJS.ErrnoException;
+    if (typedError.code !== "ENOENT") {
+      throw new Error(`Failed to read config file: ${typedError.message}`);
+    }
+    const dir = path.dirname(resolvedPath);
+    await fs.mkdir(dir, { recursive: true });
+  }
+
+  const existing = parse(existingContent) as Record<string, unknown>;
+  const providers = (existing?.providers ?? {}) as Record<string, unknown>;
+  const provider = providers[providerName] as unknown[] | Record<string, unknown> | undefined;
+
+  if (Array.isArray(provider)) {
+    throw new Error(
+      `Cannot update model config for array-format provider "${providerName}"`,
+    );
+  }
+
+  const modelConfig = (provider?.[modelName] ?? {}) as Record<string, unknown>;
+  const merged = { ...modelConfig, ..._updates };
 
   return writeGlobalConfigValue(
     configPath,

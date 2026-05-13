@@ -227,8 +227,10 @@ export interface ModelConfig {
   [key: string]: unknown;
 }
 
+export type ProviderModels = string[];
+
 export interface ProvidersListResponse {
-  providers: Record<string, Record<string, ModelConfig>>;
+  providers: Record<string, ProviderModels>;
 }
 
 export interface CreateProviderRequest {

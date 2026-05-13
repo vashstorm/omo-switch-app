@@ -1,11 +1,17 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import * as apiClient from "../api/client";
-import type { AppError, ModelConfig, CreateModelRequest, UpdateModelRequest } from "../api/types";
+import type { AppError, CreateModelRequest, ModelConfig, UpdateModelRequest } from "../api/types";
 import type { ProvidersListResponse } from "../api/types";
 
 export interface ProviderEntry {
   name: string;
   models: { name: string; config: ModelConfig }[];
+}
+
+function normalizeProviderModels(models: ProvidersListResponse["providers"][string]): ProviderEntry["models"] {
+  return (Array.isArray(models) ? models : [])
+    .map((name) => ({ name, config: {} }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function useProviders() {
@@ -14,9 +20,9 @@ export function useProviders() {
   const [initialized, setInitialized] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProviders = useCallback(async () => {
+  const fetchProviders = useCallback(async (background = false) => {
     try {
-      setLoading(true);
+      if (!background) setLoading(true);
       setError(null);
       const data = await apiClient.getProviders();
       setProviders(data.providers);
@@ -24,20 +30,20 @@ export function useProviders() {
       const appError = err as AppError;
       setError(appError.message);
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
       setInitialized(true);
     }
   }, []);
 
-  const reloadProviders = useCallback(async () => {
-    await fetchProviders();
+  const reloadProviders = useCallback(async (background = false) => {
+    await fetchProviders(background);
   }, [fetchProviders]);
 
   const createProvider = useCallback(
     async (name: string) => {
       try {
         await apiClient.createProvider({ name });
-        await reloadProviders();
+        await reloadProviders(true);
       } catch (err: unknown) {
         const appError = err as AppError;
         throw new Error(appError.message);
@@ -50,7 +56,7 @@ export function useProviders() {
     async (providerName: string, request: CreateModelRequest) => {
       try {
         await apiClient.createModel(providerName, request);
-        await reloadProviders();
+        await reloadProviders(true);
       } catch (err: unknown) {
         const appError = err as AppError;
         throw new Error(appError.message);
@@ -63,7 +69,7 @@ export function useProviders() {
     async (providerName: string, modelName: string, request: UpdateModelRequest) => {
       try {
         await apiClient.updateModel(providerName, modelName, request);
-        await reloadProviders();
+        await reloadProviders(true);
       } catch (err: unknown) {
         const appError = err as AppError;
         throw new Error(appError.message);
@@ -76,7 +82,7 @@ export function useProviders() {
     async (providerName: string, modelName: string) => {
       try {
         await apiClient.deleteModel(providerName, modelName);
-        await reloadProviders();
+        await reloadProviders(true);
       } catch (err: unknown) {
         const appError = err as AppError;
         throw new Error(appError.message);
@@ -89,7 +95,7 @@ export function useProviders() {
     async (providerName: string) => {
       try {
         await apiClient.deleteProvider(providerName);
-        await reloadProviders();
+        await reloadProviders(true);
       } catch (err: unknown) {
         const appError = err as AppError;
         throw new Error(appError.message);
@@ -108,9 +114,7 @@ export function useProviders() {
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([name, models]) => ({
             name,
-            models: Object.entries(models)
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([modelName, config]) => ({ name: modelName, config })),
+            models: normalizeProviderModels(models),
           }))
       : []
   ), [providers]);

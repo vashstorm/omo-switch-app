@@ -368,9 +368,7 @@ describe("API client", () => {
         ok: true,
         json: async () => ({
           providers: {
-            openai: {
-              "gpt-4": { maxTokens: 8192 },
-            },
+            openai: ["gpt-4"],
           },
         }),
       });
@@ -387,7 +385,7 @@ describe("API client", () => {
           }),
         })
       );
-      expect(result.providers.openai["gpt-4"].maxTokens).toBe(8192);
+      expect(result.providers.openai).toEqual(["gpt-4"]);
     });
   });
 });

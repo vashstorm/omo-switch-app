@@ -153,7 +153,6 @@ export function App() {
     error: providersError,
     createProvider,
     createModel,
-    updateModel,
     deleteModel: deleteModelFn,
     deleteProvider: deleteProviderFn,
     reloadProviders,
@@ -173,27 +172,23 @@ export function App() {
 
   const handleCreateProvider = useCallback(async (name: string) => {
     await createProvider(name);
-    reloadProfile();
+    reloadProfile(true);
   }, [createProvider, reloadProfile]);
 
   const handleCreateModel = useCallback(async (providerName: string, request: Parameters<typeof createModel>[1]) => {
     await createModel(providerName, request);
-    reloadProfile();
+    reloadProfile(true);
   }, [createModel, reloadProfile]);
 
-  const handleUpdateModel = useCallback(async (providerName: string, modelName: string, request: Parameters<typeof updateModel>[2]) => {
-    await updateModel(providerName, modelName, request);
-    reloadProfile();
-  }, [updateModel, reloadProfile]);
 
   const handleDeleteModel = useCallback(async (providerName: string, modelName: string) => {
     await deleteModelFn(providerName, modelName);
-    reloadProfile();
+    reloadProfile(true);
   }, [deleteModelFn, reloadProfile]);
 
   const handleDeleteProvider = useCallback(async (providerName: string) => {
     await deleteProviderFn(providerName);
-    reloadProfile();
+    reloadProfile(true);
   }, [deleteProviderFn, reloadProfile]);
 
   useEffect(() => {
@@ -864,7 +859,6 @@ export function App() {
           providersError,
           onCreateProvider: handleCreateProvider,
           onCreateModel: handleCreateModel,
-          onUpdateModel: handleUpdateModel,
           onDeleteModel: handleDeleteModel,
           onDeleteProvider: handleDeleteProvider,
           onReloadProviders: reloadProviders,

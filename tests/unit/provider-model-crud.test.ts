@@ -72,53 +72,25 @@ describe("provider model CRUD", () => {
   });
 
   it("creates provider in fresh config", async () => {
-    await writeProvider(configPath, "openai", {
-      "gpt-4": { type: "openai", maxTokens: 8192 },
-    });
+    await writeProvider(configPath, "openai", ["gpt-4", "gpt-3.5"]);
 
     const content = await fs.readFile(configPath, "utf-8");
     const data = parse(content) as Record<string, unknown>;
 
     expect(data.providers).toBeDefined();
     const providers = data.providers as Record<string, unknown>;
-    expect(providers.openai).toBeDefined();
-    const provider = providers.openai as Record<string, unknown>;
-    expect(provider["gpt-4"]).toEqual({ type: "openai", maxTokens: 8192 });
+    expect(providers.openai).toEqual(["gpt-4", "gpt-3.5"]);
   });
 
-  it("creates model under provider", async () => {
-    await writeProvider(configPath, "anthropic", {});
-    await writeModel(configPath, "anthropic", "claude-3", {
-      type: "anthropic",
-      maxTokens: 4096,
-    });
+  it("creates model under provider as array", async () => {
+    await writeProvider(configPath, "anthropic", []);
+    await writeModel(configPath, "anthropic", "claude-3");
 
     const content = await fs.readFile(configPath, "utf-8");
     const data = parse(content) as Record<string, unknown>;
     const providers = data.providers as Record<string, unknown>;
-    const provider = providers.anthropic as Record<string, unknown>;
 
-    expect(provider["claude-3"]).toEqual({ type: "anthropic", maxTokens: 4096 });
-  });
-
-  it("updates model maxTokens while preserving unknown sibling fields", async () => {
-    await writeModel(configPath, "openai", "gpt-4", {
-      type: "openai",
-      maxTokens: 8192,
-      customField: "preserve-me",
-    });
-
-    await updateModelConfig(configPath, "openai", "gpt-4", { maxTokens: 16384 });
-
-    const content = await fs.readFile(configPath, "utf-8");
-    const data = parse(content) as Record<string, unknown>;
-    const providers = data.providers as Record<string, unknown>;
-    const provider = providers.openai as Record<string, unknown>;
-    const model = provider["gpt-4"] as Record<string, unknown>;
-
-    expect(model.maxTokens).toBe(16384);
-    expect(model.customField).toBe("preserve-me");
-    expect(model.type).toBe("openai");
+    expect(providers.anthropic).toEqual(["claude-3"]);
   });
 
   it("preserves comments and unrelated top-level keys", async () => {
@@ -131,7 +103,7 @@ describe("provider model CRUD", () => {
 }`;
     await fs.writeFile(configPath, initialContent, "utf-8");
 
-    await writeModel(configPath, "openai", "gpt-4", { type: "openai", maxTokens: 8192 });
+    await writeModel(configPath, "openai", "gpt-4");
 
     const content = await fs.readFile(configPath, "utf-8");
     const data = parse(content) as Record<string, unknown>;
@@ -140,27 +112,23 @@ describe("provider model CRUD", () => {
     expect(data.top_level_unmanaged).toEqual({ preserve: true });
 
     const providers = data.providers as Record<string, unknown>;
-    const provider = providers.openai as Record<string, unknown>;
-    expect(provider["gpt-4"]).toBeDefined();
+    expect(providers.openai).toEqual(["gpt-4"]);
   });
 
-  it("deletes model preserves siblings", async () => {
-    await writeModel(configPath, "openai", "gpt-4", { type: "openai" });
-    await writeModel(configPath, "openai", "gpt-3.5", { type: "openai" });
+  it("deletes model preserves siblings in array", async () => {
+    await writeProvider(configPath, "openai", ["gpt-4", "gpt-3.5"]);
 
     await deleteModel(configPath, "openai", "gpt-4");
 
     const content = await fs.readFile(configPath, "utf-8");
     const data = parse(content) as Record<string, unknown>;
     const providers = data.providers as Record<string, unknown>;
-    const provider = providers.openai as Record<string, unknown>;
 
-    expect(provider["gpt-4"]).toBeUndefined();
-    expect(provider["gpt-3.5"]).toBeDefined();
+    expect(providers.openai).toEqual(["gpt-3.5"]);
   });
 
   it("deleting provider does not modify unrelated keys", async () => {
-    await writeProvider(configPath, "openai", { "gpt-4": { type: "openai" } });
+    await writeProvider(configPath, "openai", ["gpt-4"]);
     await writeGlobalConfigValue(configPath, ["other_key"], "preserve");
 
     await deleteProvider(configPath, "openai");
@@ -172,21 +140,20 @@ describe("provider model CRUD", () => {
     expect((data.providers as Record<string, unknown>)?.openai).toBeUndefined();
   });
 
-  it("deleting missing model is no-op", async () => {
-    await writeProvider(configPath, "openai", { "gpt-4": { type: "openai" } });
+  it("deleting missing model from array is no-op", async () => {
+    await writeProvider(configPath, "openai", ["gpt-4"]);
 
     await deleteModel(configPath, "openai", "nonexistent");
 
     const content = await fs.readFile(configPath, "utf-8");
     const data = parse(content) as Record<string, unknown>;
     const providers = data.providers as Record<string, unknown>;
-    const provider = providers.openai as Record<string, unknown>;
 
-    expect(provider["gpt-4"]).toBeDefined();
+    expect(providers.openai).toEqual(["gpt-4"]);
   });
 
   it("deleting missing provider is no-op", async () => {
-    await writeProvider(configPath, "openai", { "gpt-4": { type: "openai" } });
+    await writeProvider(configPath, "openai", ["gpt-4"]);
 
     await deleteProvider(configPath, "nonexistent");
 
@@ -199,32 +166,72 @@ describe("provider model CRUD", () => {
   });
 
   it("throws on duplicate model creation unless overwrite=true", async () => {
-    await writeModel(configPath, "openai", "gpt-4", { type: "openai" });
+    await writeModel(configPath, "openai", "gpt-4");
 
     await expect(
-      writeModel(configPath, "openai", "gpt-4", { type: "openai" }, { overwrite: false }),
+      writeModel(configPath, "openai", "gpt-4", { overwrite: false }),
     ).rejects.toThrow(/already exists/);
 
-    await writeModel(configPath, "openai", "gpt-4", { type: "openai", maxTokens: 16384 }, { overwrite: true });
+    // overwrite=true (default) does not throw and preserves array
+    await writeModel(configPath, "openai", "gpt-4");
 
     const content = await fs.readFile(configPath, "utf-8");
     const data = parse(content) as Record<string, unknown>;
     const providers = data.providers as Record<string, unknown>;
-    const provider = providers.openai as Record<string, unknown>;
-    const model = provider["gpt-4"] as Record<string, unknown>;
 
+    expect(providers.openai).toEqual(["gpt-4"]);
+  });
+
+  it("throws when updating array-format provider", async () => {
+    await writeModel(configPath, "openai", "gpt-4");
+
+    await expect(
+      updateModelConfig(configPath, "openai", "gpt-4", { maxTokens: 16384 }),
+    ).rejects.toThrow(/Cannot update model config for array-format provider/);
+  });
+
+  it("allows updating object-format provider (legacy)", async () => {
+    const initialContent = `{
+  "providers": {
+    "openai": {
+      "gpt-4": { "type": "chat" }
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+
+    await updateModelConfig(configPath, "openai", "gpt-4", { maxTokens: 16384 });
+
+    const content = await fs.readFile(configPath, "utf-8");
+    const data = parse(content) as Record<string, unknown>;
+    const providers = data.providers as Record<string, unknown>;
+    const model = (providers.openai as Record<string, unknown>)["gpt-4"] as Record<string, unknown>;
+
+    expect(model.type).toBe("chat");
     expect(model.maxTokens).toBe(16384);
   });
 
-  it("maxTokens defaults to 64000 when not specified", async () => {
-    await writeModel(configPath, "openai", "gpt-4", { type: "openai" });
+  it("creates model under object-format provider without replacing existing models", async () => {
+    const initialContent = `{
+  "providers": {
+    "openai": {
+      "gpt-4": { "type": "chat", "maxTokens": 8192 },
+      "gpt-3.5": { "type": "chat" }
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+
+    await writeModel(configPath, "openai", "gpt-4o", { overwrite: false });
 
     const content = await fs.readFile(configPath, "utf-8");
     const data = parse(content) as Record<string, unknown>;
     const providers = data.providers as Record<string, unknown>;
-    const provider = providers.openai as Record<string, unknown>;
-    const model = provider["gpt-4"] as Record<string, unknown>;
 
-    expect(model.maxTokens).toBe(64000);
+    expect(providers.openai).toEqual({
+      "gpt-4": { type: "chat", maxTokens: 8192 },
+      "gpt-3.5": { type: "chat" },
+      "gpt-4o": {},
+    });
   });
 });

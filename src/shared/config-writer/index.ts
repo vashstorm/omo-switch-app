@@ -6,4 +6,9 @@ export {
   type WriteProfileResult,
 } from "./writer";
 
-export { writeDisabledProviders } from "./global-config-writer";
+export {
+  writeDisabledProviders,
+  writeModel,
+  deleteModel,
+  updateModelConfig,
+} from "./global-config-writer";

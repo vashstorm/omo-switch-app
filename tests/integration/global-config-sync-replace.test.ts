@@ -31,7 +31,7 @@ describe("global config sync replace integration", () => {
 
   it("writes sync_replace_enabled true to existing file", async () => {
     const initial = JSON.stringify({
-      providers: { openai: { "gpt-5.4": { maxTokens: 64000 } } },
+      providers: { openai: ["gpt-5.4"] },
     });
     await fs.writeFile(tempConfigPath, initial, "utf-8");
 
@@ -64,8 +64,8 @@ describe("global config sync replace integration", () => {
   it("preserves existing provider configuration", async () => {
     const initial = JSON.stringify({
       providers: {
-        openai: { "gpt-5.4": { maxTokens: 64000 } },
-        "aliyun-cp": { "glm-5": { maxTokens: 64000 } },
+        openai: ["gpt-5.4"],
+        "aliyun-cp": ["glm-5"],
       },
       config_path: ["/some/path"],
     });
@@ -75,8 +75,8 @@ describe("global config sync replace integration", () => {
 
     const config = await readGlobalConfig(tempConfigPath);
     expect(getSyncReplaceEnabled(config)).toBe(true);
-    expect(config.providers?.openai?.["gpt-5.4"]?.maxTokens).toBe(64000);
-    expect(config.providers?.["aliyun-cp"]?.["glm-5"]?.maxTokens).toBe(64000);
+    expect(config.providers?.openai).toEqual(["gpt-5.4"]);
+    expect(config.providers?.["aliyun-cp"]).toEqual(["glm-5"]);
     expect(config.config_path).toEqual(["/some/path"]);
   });
 

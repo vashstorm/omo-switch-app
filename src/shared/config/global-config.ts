@@ -22,7 +22,7 @@ export {
 export interface GlobalConfig {
   config_path?: string[];
   log_path?: string;
-  providers?: Record<string, Record<string, { type?: string; maxTokens?: number; name?: string }>>;
+  providers?: Record<string, string[]>;
   ui_preferences?: {
     sync_replace_enabled?: boolean;
     zoom_percent?: number;
@@ -161,10 +161,7 @@ export function extractGlobalModels(config: GlobalConfig): string[] {
   const seen = new Set<string>();
 
   for (const [providerName, providerModels] of Object.entries(config.providers)) {
-    if (!providerModels || typeof providerModels !== "object") {
-      continue;
-    }
-    for (const modelId of Object.keys(providerModels)) {
+    for (const modelId of providerModels) {
       const fullId = `${providerName}/${modelId}`;
       if (!seen.has(fullId)) {
         seen.add(fullId);
@@ -189,10 +186,7 @@ export function extractGlobalModelSources(
   const resolvedPath = path.resolve(configPath);
 
   for (const [providerName, providerModels] of Object.entries(config.providers)) {
-    if (!providerModels || typeof providerModels !== "object") {
-      continue;
-    }
-    for (const modelId of Object.keys(providerModels)) {
+    for (const modelId of providerModels) {
       const fullId = `${providerName}/${modelId}`;
       if (!seen.has(fullId)) {
         seen.add(fullId);

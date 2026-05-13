@@ -299,8 +299,8 @@ pub struct ModelConfig {
     pub extra: HashMap<String, serde_json::Value>,
 }
 
-/// A provider's model map (provider_name -> {model_name: ModelConfig}).
-pub type ProviderModels = HashMap<String, ModelConfig>;
+/// A provider's model list (provider_name -> [model_name]).
+pub type ProviderModels = Vec<String>;
 
 /// Response containing all providers and their models.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

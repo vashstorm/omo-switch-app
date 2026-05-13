@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { parse } from "jsonc-parser";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { writeProfileConfig, writeDisabledProviders } from "../../src/shared/config-writer";
+import { writeProfileConfig, writeDisabledProviders, writeModel, deleteModel, updateModelConfig } from "../../src/shared/config-writer";
 import type { EditableConfig } from "../../src/shared/config/types";
 import type { ResolvedProfile } from "../../src/shared/profiles/types";
 
@@ -860,5 +860,219 @@ describe("writeDisabledProviders", () => {
     const data = parse(saved) as Record<string, any>;
 
     expect(data.disabled_providers["new-profile"]).toEqual(["provider1", "provider2"]);
+  });
+});
+
+
+describe("writeModel", () => {
+  let tempDir = "";
+  let configPath = "";
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omo-switch-write-model-"));
+    configPath = path.join(tempDir, "config.jsonc");
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("creates model in array-format provider and preserves existing models", async () => {
+    const initialContent = `{
+  "providers": {
+    "openai": [
+      "gpt-5.4",
+      "gpt-5.3-codex"
+    ]
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+
+    await writeModel(configPath, "openai", "gpt-5.5");
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.providers.openai).toEqual(["gpt-5.4", "gpt-5.3-codex", "gpt-5.5"]);
+  });
+
+  it("creates model when provider does not exist", async () => {
+    const initialContent = `{}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+
+    await writeModel(configPath, "openai", "gpt-5");
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.providers.openai).toEqual(["gpt-5"]);
+  });
+
+  it("does not duplicate model when adding existing model", async () => {
+    const initialContent = `{
+  "providers": {
+    "openai": ["gpt-5"]
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+
+    await writeModel(configPath, "openai", "gpt-5");
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.providers.openai).toEqual(["gpt-5"]);
+  });
+
+  it("throws when model already exists and overwrite is false", async () => {
+    const initialContent = `{
+  "providers": {
+    "openai": ["gpt-5"]
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+
+    await expect(
+      writeModel(configPath, "openai", "gpt-5", { overwrite: false })
+    ).rejects.toThrow('Model "gpt-5" already exists under provider "openai"');
+  });
+
+  it("throws when provider name is invalid", async () => {
+    await expect(writeModel(configPath, "", "gpt-5")).rejects.toThrow();
+  });
+
+  it("throws when model name is invalid", async () => {
+    await expect(writeModel(configPath, "openai", "")).rejects.toThrow();
+  });
+});
+
+describe("deleteModel", () => {
+  let tempDir = "";
+  let configPath = "";
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omo-switch-delete-model-"));
+    configPath = path.join(tempDir, "config.jsonc");
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("deletes model from array-format provider and preserves others", async () => {
+    const initialContent = `{
+  "providers": {
+    "openai": [
+      "gpt-5.4",
+      "gpt-5.3-codex",
+      "gpt-5.5"
+    ]
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+
+    await deleteModel(configPath, "openai", "gpt-5.3-codex");
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.providers.openai).toEqual(["gpt-5.4", "gpt-5.5"]);
+  });
+
+  it("handles deleting non-existent model gracefully", async () => {
+    const initialContent = `{
+  "providers": {
+    "openai": ["gpt-5.4"]
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+
+    await deleteModel(configPath, "openai", "non-existent");
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.providers.openai).toEqual(["gpt-5.4"]);
+  });
+
+  it("handles deleting from non-array provider gracefully", async () => {
+    const initialContent = `{
+  "providers": {
+    "openai": { "gpt-5.4": {} }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+
+    await deleteModel(configPath, "openai", "gpt-5.4");
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    // 对象格式下不处理，保持原样
+    expect(data.providers.openai).toEqual({ "gpt-5.4": {} });
+  });
+
+  it("throws when provider name is invalid", async () => {
+    await expect(deleteModel(configPath, "", "gpt-5")).rejects.toThrow();
+  });
+
+  it("throws when model name is invalid", async () => {
+    await expect(deleteModel(configPath, "openai", "")).rejects.toThrow();
+  });
+});
+
+describe("updateModelConfig", () => {
+  let tempDir = "";
+  let configPath = "";
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omo-switch-update-model-"));
+    configPath = path.join(tempDir, "config.jsonc");
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("throws for array-format provider", async () => {
+    const initialContent = `{
+  "providers": {
+    "openai": [
+      "gpt-5.4",
+      "gpt-5.3-codex"
+    ]
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+
+    await expect(
+      updateModelConfig(configPath, "openai", "gpt-5.4", { maxTokens: 256000 })
+    ).rejects.toThrow('Cannot update model config for array-format provider "openai"');
+  });
+
+  it("updates model config in object-format provider", async () => {
+    const initialContent = `{
+  "providers": {
+    "openai": {
+      "gpt-5.4": { "type": "chat" }
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+
+    await updateModelConfig(configPath, "openai", "gpt-5.4", { maxTokens: 64000 });
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.providers.openai["gpt-5.4"]).toEqual({ type: "chat", maxTokens: 64000 });
+  });
+
+  it("throws when provider name is invalid", async () => {
+    await expect(updateModelConfig(configPath, "", "gpt-5", {})).rejects.toThrow();
+  });
+
+  it("throws when model name is invalid", async () => {
+    await expect(updateModelConfig(configPath, "openai", "", {})).rejects.toThrow();
   });
 });

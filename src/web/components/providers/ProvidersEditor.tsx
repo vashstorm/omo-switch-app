@@ -12,21 +12,22 @@ import {
   Chip,
   CircularProgress,
   Alert,
+  Tooltip,
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import {
   ChevronRight,
-  ChevronDown,
   Trash2,
   Plus,
+  PackageOpen,
 } from "lucide-react";
-import { TRANSITIONS } from "../../theme/motionTokens";
+import { TRANSITIONS, DURATIONS, EASING } from "../../theme/motionTokens";
 import { radii } from "../../theme/designTokens";
 import { MONO_FONT } from "../../theme/typography";
 import { ConfirmDialog } from "../common/ConfirmDialog";
-import type { CreateModelRequest, UpdateModelRequest } from "../../api/types";
+import type { CreateModelRequest } from "../../api/types";
 import type { ProviderEntry } from "../../hooks/useProviders";
-import { validateProviderName, validateModelName, validateMaxTokens } from "../../../shared/config/validators";
+import { validateProviderName, validateModelName } from "../../../shared/config/validators";
 import type { ReferenceImpactEntry } from "../../providers/referenceImpact";
 
 interface ProvidersEditorProps {
@@ -35,7 +36,6 @@ interface ProvidersEditorProps {
   error: string | null;
   onCreateProvider: (name: string) => Promise<void>;
   onCreateModel: (providerName: string, request: CreateModelRequest) => Promise<void>;
-  onUpdateModel: (providerName: string, modelName: string, request: UpdateModelRequest) => Promise<void>;
   onDeleteModel: (providerName: string, modelName: string) => Promise<void>;
   onDeleteProvider: (providerName: string) => Promise<void>;
   onReload: () => Promise<void>;
@@ -56,10 +56,8 @@ function ProvidersEditorComponent({
   error,
   onCreateProvider,
   onCreateModel,
-  onUpdateModel,
   onDeleteModel,
   onDeleteProvider,
-  onReload,
   onGetProviderImpact,
   onGetModelImpact,
 }: ProvidersEditorProps) {
@@ -68,39 +66,24 @@ function ProvidersEditorComponent({
 
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [confirmState, setConfirmState] = useState<ConfirmState>({
-    open: false,
-    title: "",
-    description: "",
-    onConfirm: () => {},
+    open: false, title: "", description: "", onConfirm: () => {},
   });
-
   const [newProviderName, setNewProviderName] = useState("");
   const [newProviderError, setNewProviderError] = useState<string | null>(null);
   const [isCreatingProvider, setIsCreatingProvider] = useState(false);
-
   const [newModelStates, setNewModelStates] = useState<
-    Record<string, { name: string; maxTokens: string; error: string | null }>
+    Record<string, { name: string; error: string | null }>
   >({});
 
-  const [editingMaxTokens, setEditingMaxTokens] = useState<
-    Record<string, { value: string; error: string | null }>
-  >({});
-
-  const handleToggleSection = useCallback((providerName: string) => {
-    setCollapsedSections((prev) => ({
-      ...prev,
-      [providerName]: !prev[providerName],
-    }));
+  const handleToggleSection = useCallback((name: string) => {
+    setCollapsedSections((prev) => ({ ...prev, [name]: !prev[name] }));
   }, []);
 
   const handleCreateProvider = useCallback(async () => {
-    try {
-      validateProviderName(newProviderName);
-    } catch (err: unknown) {
+    try { validateProviderName(newProviderName); } catch (err: unknown) {
       setNewProviderError(err instanceof Error ? err.message : "Invalid provider name");
       return;
     }
-
     setNewProviderError(null);
     setIsCreatingProvider(true);
     try {
@@ -113,173 +96,65 @@ function ProvidersEditorComponent({
     }
   }, [newProviderName, onCreateProvider]);
 
-  const handleCreateModel = useCallback(
-    async (providerName: string) => {
-      const modelState = newModelStates[providerName] || { name: "", maxTokens: "64000", error: null };
-
-      try {
-        validateModelName(modelState.name);
-        validateMaxTokens(parseInt(modelState.maxTokens, 10));
-      } catch (err: unknown) {
-        setNewModelStates((prev) => ({
-          ...prev,
-          [providerName]: { ...modelState, error: err instanceof Error ? err.message : "Invalid input" },
-        }));
-        return;
-      }
-
+  const handleCreateModel = useCallback(async (providerName: string) => {
+    const modelState = newModelStates[providerName] || { name: "", error: null };
+    try {
+      validateModelName(modelState.name);
+    } catch (err: unknown) {
       setNewModelStates((prev) => ({
         ...prev,
-        [providerName]: { ...modelState, error: null },
+        [providerName]: { ...modelState, error: err instanceof Error ? err.message : "Invalid input" },
       }));
-
-      try {
-        await onCreateModel(providerName, {
-          name: modelState.name,
-          maxTokens: parseInt(modelState.maxTokens, 10),
-        });
-        setNewModelStates((prev) => ({
-          ...prev,
-          [providerName]: { name: "", maxTokens: "64000", error: null },
-        }));
-      } catch (err: unknown) {
-        setNewModelStates((prev) => ({
-          ...prev,
-          [providerName]: { ...modelState, error: err instanceof Error ? err.message : "Failed to create model" },
-        }));
-      }
-    },
-    [newModelStates, onCreateModel]
-  );
-
-  const handleNewModelNameChange = useCallback((providerName: string, name: string) => {
-    setNewModelStates((prev) => ({
-      ...prev,
-      [providerName]: { ...(prev[providerName] || { maxTokens: "64000", error: null }), name, error: null },
-    }));
-  }, []);
-
-  const handleNewModelMaxTokensChange = useCallback((providerName: string, value: string) => {
-    setNewModelStates((prev) => ({
-      ...prev,
-      [providerName]: { ...(prev[providerName] || { name: "", error: null }), maxTokens: value, error: null },
-    }));
-  }, []);
-
-  const handleDeleteProvider = useCallback(
-    (providerName: string) => {
-      const entries = onGetProviderImpact?.(providerName) ?? [];
-      let description = `Delete provider "${providerName}" and all its models?`;
-      if (entries.length > 0) {
-        const lines = entries.map(e => `  - ${e.kind} "${e.id}" uses "${e.modelId}"`);
-        description += `\n\nReferenced by:\n${lines.join("\n")}`;
-      }
-      setConfirmState({
-        open: true,
-        title: "Delete Provider",
-        description,
-        onConfirm: async () => {
-          try {
-            await onDeleteProvider(providerName);
-          } catch (err: unknown) {
-            // Error handled by hook
-          }
-          setConfirmState((prev) => ({ ...prev, open: false }));
-        },
-      });
-    },
-    [onDeleteProvider, onGetProviderImpact]
-  );
-
-  const handleDeleteModel = useCallback(
-    (providerName: string, modelName: string) => {
-      const entries = onGetModelImpact?.(providerName, modelName) ?? [];
-      let description = `Delete model "${modelName}" from provider "${providerName}"?`;
-      if (entries.length > 0) {
-        const lines = entries.map(e => `  - ${e.kind} "${e.id}" uses "${e.modelId}"`);
-        description += `\n\nReferenced by:\n${lines.join("\n")}`;
-      }
-      setConfirmState({
-        open: true,
-        title: "Delete Model",
-        description,
-        onConfirm: async () => {
-          try {
-            await onDeleteModel(providerName, modelName);
-          } catch (err: unknown) {
-            // Error handled by hook
-          }
-          setConfirmState((prev) => ({ ...prev, open: false }));
-        },
-      });
-    },
-    [onDeleteModel, onGetModelImpact]
-  );
-
-  const handleSaveMaxTokens = useCallback(
-    async (providerName: string, modelName: string) => {
-      const editKey = `${providerName}/${modelName}`;
-      const editState = editingMaxTokens[editKey];
-      if (!editState) return;
-
-      const parsed = parseInt(editState.value, 10);
-      try {
-        validateMaxTokens(parsed);
-      } catch (err: unknown) {
-        setEditingMaxTokens((prev) => ({
-          ...prev,
-          [editKey]: { ...editState, error: err instanceof Error ? err.message : "Invalid maxTokens" },
-        }));
-        return;
-      }
-
-      setEditingMaxTokens((prev) => ({
+      return;
+    }
+    try {
+      await onCreateModel(providerName, { name: modelState.name });
+      setNewModelStates((prev) => ({
         ...prev,
-        [editKey]: { ...editState, error: null },
+        [providerName]: { name: "", error: null },
       }));
-
-      try {
-        await onUpdateModel(providerName, modelName, { maxTokens: parsed });
-        setEditingMaxTokens((prev) => {
-          const next = { ...prev };
-          delete next[editKey];
-          return next;
-        });
-      } catch (err: unknown) {
-        setEditingMaxTokens((prev) => ({
-          ...prev,
-          [editKey]: { ...editState, error: err instanceof Error ? err.message : "Failed to update" },
-        }));
-      }
-    },
-    [editingMaxTokens, onUpdateModel]
-  );
-
-  const startEditingMaxTokens = useCallback(
-    (providerName: string, modelName: string, currentValue: number | undefined) => {
-      const editKey = `${providerName}/${modelName}`;
-      setEditingMaxTokens((prev) => ({
+    } catch (err: unknown) {
+      setNewModelStates((prev) => ({
         ...prev,
-        [editKey]: { value: String(currentValue ?? 64000), error: null },
+        [providerName]: { ...modelState, error: err instanceof Error ? err.message : "Failed to create model" },
       }));
-    },
-    []
-  );
+    }
+  }, [newModelStates, onCreateModel]);
 
-  if (loading) {
+  const handleDeleteProvider = useCallback((providerName: string) => {
+    const entries = onGetProviderImpact?.(providerName) ?? [];
+    let description = `Delete provider "${providerName}" and all its models?`;
+    if (entries.length > 0) {
+      description += `\n\nReferenced by:\n${entries.map(e => `  - ${e.kind} "${e.id}" uses "${e.modelId}"`).join("\n")}`;
+    }
+    setConfirmState({
+      open: true, title: "Delete Provider", description,
+      onConfirm: async () => {
+        try { await onDeleteProvider(providerName); } catch {}
+        setConfirmState((prev) => ({ ...prev, open: false }));
+      },
+    });
+  }, [onDeleteProvider, onGetProviderImpact]);
+
+  const handleDeleteModel = useCallback((providerName: string, modelName: string) => {
+    const entries = onGetModelImpact?.(providerName, modelName) ?? [];
+    let description = `Delete model "${modelName}" from provider "${providerName}"?`;
+    if (entries.length > 0) {
+      description += `\n\nReferenced by:\n${entries.map(e => `  - ${e.kind} "${e.id}" uses "${e.modelId}"`).join("\n")}`;
+    }
+    setConfirmState({
+      open: true, title: "Delete Model", description,
+      onConfirm: async () => {
+        try { await onDeleteModel(providerName, modelName); } catch {}
+        setConfirmState((prev) => ({ ...prev, open: false }));
+      },
+    });
+  }, [onDeleteModel, onGetModelImpact]);
+
+  if (loading && providersList.length === 0) {
     return (
-      <Box
-        data-testid="providers-editor"
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          p: 3,
-          bgcolor: "background.paper",
-          borderRadius: 3,
-        }}
-      >
-        <CircularProgress size={24} />
+      <Box data-testid="providers-editor" sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+        <CircularProgress size={22} sx={{ color: providersColor }} />
       </Box>
     );
   }
@@ -287,95 +162,90 @@ function ProvidersEditorComponent({
   return (
     <Box
       data-testid="providers-editor"
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 1,
-        bgcolor: "background.paper",
-        borderRadius: 3,
-        p: 1.5,
-        transition: TRANSITIONS.control,
-      }}
+      sx={{ display: "flex", flexDirection: "column", gap: 1 }}
     >
-      {error && (
-        <Alert severity="error" sx={{ mb: 1 }}>
-          {error}
-        </Alert>
-      )}
+      {error && <Alert severity="error" sx={{ mb: 0.5, fontSize: "0.8rem" }}>{error}</Alert>}
 
       {/* Add Provider Form */}
-      <Card
-        sx={{
-          overflow: "visible",
-          transition: TRANSITIONS.control,
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
-        }}
+      <Box
         data-testid="provider-create-section"
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 1,
+          p: 1.25,
+          borderRadius: 1.5,
+          border: `1px dashed ${alpha(providersColor, 0.3)}`,
+          bgcolor: alpha(providersColor, 0.02),
+          transition: TRANSITIONS.control,
+          "&:focus-within": {
+            border: `1px dashed ${alpha(providersColor, 0.55)}`,
+            bgcolor: alpha(providersColor, 0.04),
+          },
+        }}
       >
-        <Box
+        <TextField
+          size="small"
+          placeholder="New provider name…"
+          value={newProviderName}
+          onChange={(e) => { setNewProviderName(e.target.value); setNewProviderError(null); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && newProviderName) handleCreateProvider(); }}
+          error={!!newProviderError}
+          helperText={newProviderError}
+          disabled={isCreatingProvider}
+          inputProps={{ "data-testid": "provider-create-input" }}
           sx={{
-            height: 2,
-            bgcolor: providersColor,
-            opacity: 0.85,
+            flex: 1,
+            "& .MuiInputBase-input": { fontFamily: MONO_FONT, fontSize: "0.8rem" },
           }}
         />
-        <Box
+        <Button
+          variant="contained"
+          size="small"
+          onClick={handleCreateProvider}
+          disabled={!newProviderName || isCreatingProvider}
+          data-testid="provider-create-submit"
+          startIcon={isCreatingProvider ? <CircularProgress size={14} color="inherit" /> : <Plus size={14} />}
           sx={{
-            p: 1.5,
-            display: "flex",
-            flexDirection: "column",
-            gap: 1,
+            bgcolor: providersColor,
+            "&:hover": { bgcolor: alpha(providersColor, 0.85) },
+            boxShadow: `0 2px 8px ${alpha(providersColor, 0.3)}`,
+            fontWeight: 600,
+            fontSize: "0.75rem",
+            whiteSpace: "nowrap",
           }}
         >
-          <Typography
-            sx={{
-              fontSize: "0.8125rem",
-              fontWeight: 600,
-              fontFamily: MONO_FONT,
-              color: "text.primary",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            Add Provider
+          Add
+        </Button>
+      </Box>
+
+      {/* Empty state */}
+      {providersList.length === 0 && (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 1,
+            py: 5,
+            color: "text.disabled",
+          }}
+        >
+          <PackageOpen size={32} strokeWidth={1.25} />
+          <Typography sx={{ fontSize: "0.8125rem", fontFamily: MONO_FONT }}>
+            No providers yet
           </Typography>
-          <Stack direction="row" spacing={1} alignItems="flex-start">
-            <TextField
-              size="small"
-              placeholder="Provider name (e.g. my-provider)"
-              value={newProviderName}
-              onChange={(e) => {
-                setNewProviderName(e.target.value);
-                setNewProviderError(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newProviderName) {
-                  handleCreateProvider();
-                }
-              }}
-              error={!!newProviderError}
-              helperText={newProviderError}
-              disabled={isCreatingProvider}
-              inputProps={{ "data-testid": "provider-create-input" }}
-              sx={{ flex: 1 }}
-            />
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleCreateProvider}
-              disabled={!newProviderName || isCreatingProvider}
-              data-testid="provider-create-submit"
-              startIcon={isCreatingProvider ? <CircularProgress size={16} /> : <Plus size={16} />}
-            >
-              Add
-            </Button>
-          </Stack>
+          <Typography sx={{ fontSize: "0.75rem", color: "text.disabled" }}>
+            Add your first provider above
+          </Typography>
         </Box>
-      </Card>
+      )}
 
       {/* Provider Sections */}
       {providersList.map((provider) => {
         const collapsed = !!collapsedSections[provider.name];
-        const modelState = newModelStates[provider.name] || { name: "", maxTokens: "64000", error: null };
+        const modelState = newModelStates[provider.name] || { name: "", error: null };
 
         return (
           <Card
@@ -383,27 +253,29 @@ function ProvidersEditorComponent({
             sx={{
               overflow: "hidden",
               transition: TRANSITIONS.control,
-              boxShadow: collapsed ? "none" : "0 2px 12px rgba(0, 0, 0, 0.06)",
-              "&:hover": {
-                boxShadow: collapsed ? "0 2px 8px rgba(0, 0, 0, 0.04)" : "0 4px 16px rgba(0, 0, 0, 0.08)",
-              },
+              boxShadow: collapsed ? "none" : `0 2px 10px ${alpha(providersColor, 0.08)}`,
+              border: `1px solid ${collapsed ? alpha(theme.palette.divider, 0.6) : alpha(providersColor, 0.18)}`,
+              "&:hover": { boxShadow: `0 4px 16px ${alpha(providersColor, 0.12)}` },
             }}
             data-testid={`provider-section-${provider.name}`}
             id={`provider-${provider.name}`}
           >
+            {/* Accent top bar — always visible, dims when collapsed */}
             <Box
               sx={{
                 height: 2,
-                bgcolor: collapsed ? "transparent" : providersColor,
-                transition: TRANSITIONS.control,
-                opacity: 0.85,
+                bgcolor: providersColor,
+                opacity: collapsed ? 0.25 : 0.85,
+                transition: `opacity ${DURATIONS.NORMAL}ms ${EASING.EASE_OUT}`,
               }}
             />
+
+            {/* Provider header row */}
             <Box
               sx={{
-                py: 0.25,
+                py: 0.5,
                 px: 1,
-                bgcolor: collapsed ? "transparent" : alpha(providersColor, 0.02),
+                bgcolor: collapsed ? "transparent" : alpha(providersColor, 0.025),
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -424,100 +296,130 @@ function ProvidersEditorComponent({
                   flex: 1,
                   justifyContent: "flex-start",
                   borderRadius: 1.5,
-                  p: "6px 8px",
-                  "&:hover": { bgcolor: alpha(providersColor, 0.04) },
+                  p: "5px 8px",
+                  "&:hover": { bgcolor: alpha(providersColor, 0.05) },
                   "&:focus-visible": {
                     outline: `2px solid ${alpha(providersColor, 0.5)}`,
                     outlineOffset: 1,
                   },
                 }}
               >
+                {/* Animated chevron */}
                 <Box
                   sx={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    width: 24,
-                    height: 24,
-                    borderRadius: 1.5,
+                    width: 22,
+                    height: 22,
+                    borderRadius: 1,
                     bgcolor: collapsed ? alpha(providersColor, 0.08) : providersColor,
                     color: collapsed ? "text.secondary" : "common.white",
                     transition: TRANSITIONS.control,
+                    "& svg": {
+                      transition: `transform ${DURATIONS.NORMAL}ms ${EASING.EASE_OUT}`,
+                      transform: collapsed ? "rotate(0deg)" : "rotate(90deg)",
+                    },
                   }}
                 >
-                  {collapsed ? (
-                    <ChevronRight style={{ width: 16, height: 16 }} />
-                  ) : (
-                    <ChevronDown style={{ width: 16, height: 16 }} />
-                  )}
+                  <ChevronRight style={{ width: 14, height: 14 }} />
                 </Box>
+
                 <Typography
                   component="h4"
                   sx={{
                     fontSize: "0.8125rem",
-                    fontWeight: 500,
+                    fontWeight: 600,
                     fontFamily: MONO_FONT,
-                    color: "text.primary",
+                    color: collapsed ? "text.secondary" : "text.primary",
                     letterSpacing: "-0.01em",
-                    transition: TRANSITIONS.control,
+                    transition: `color ${DURATIONS.NORMAL}ms ${EASING.EASE_OUT}`,
                   }}
                 >
                   {provider.name}
                 </Typography>
+
                 <Chip
-                  label={String(provider.models.length)}
+                  label={`${provider.models.length} model${provider.models.length !== 1 ? "s" : ""}`}
                   size="small"
                   sx={{
-                    fontSize: "0.6875rem",
+                    fontSize: "0.6rem",
                     fontFamily: MONO_FONT,
-                    bgcolor: alpha(providersColor, 0.1),
-                    color: providersColor,
-                    fontWeight: 500,
+                    height: 18,
+                    bgcolor: collapsed ? alpha(theme.palette.divider, 0.5) : alpha(providersColor, 0.12),
+                    color: collapsed ? "text.disabled" : providersColor,
+                    fontWeight: 600,
+                    transition: TRANSITIONS.control,
+                    "& .MuiChip-label": { px: 0.75 },
                   }}
                 />
               </ButtonBase>
-              <IconButton
-                size="small"
-                onClick={() => handleDeleteProvider(provider.name)}
-                data-testid={`provider-delete-${provider.name}`}
-                sx={{
-                  color: "text.secondary",
-                  "&:hover": { color: "error.main", bgcolor: alpha(theme.palette.error.main, 0.08) },
-                }}
-              >
-                <Trash2 size={16} />
-              </IconButton>
+
+              <Tooltip title="Delete provider" placement="left">
+                <IconButton
+                  size="small"
+                  onClick={() => handleDeleteProvider(provider.name)}
+                  data-testid={`provider-delete-${provider.name}`}
+                  sx={{
+                    color: "text.disabled",
+                    transition: TRANSITIONS.control,
+                    "&:hover": { color: "error.main", bgcolor: alpha(theme.palette.error.main, 0.08) },
+                  }}
+                >
+                  <Trash2 size={14} />
+                </IconButton>
+              </Tooltip>
             </Box>
+
             <Collapse in={!collapsed} unmountOnExit>
               <Box
                 id={`provider-body-${provider.name}`}
                 sx={{
-                  borderTop: `1px solid ${alpha(providersColor, 0.2)}`,
+                  borderTop: `1px solid ${alpha(providersColor, 0.15)}`,
                   borderBottomLeftRadius: radii.card,
                   borderBottomRightRadius: radii.card,
-                  bgcolor: alpha(providersColor, 0.01),
                 }}
               >
                 {/* Models List */}
+                {provider.models.length === 0 && (
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      color: "text.disabled",
+                    }}
+                  >
+                    <Typography sx={{ fontSize: "0.75rem", fontFamily: MONO_FONT, fontStyle: "italic" }}>
+                      No models — add one below
+                    </Typography>
+                  </Box>
+                )}
+
                 {provider.models.map((model) => {
-                  const editKey = `${provider.name}/${model.name}`;
-                  const editState = editingMaxTokens[editKey];
-                  const isEditing = !!editState;
-                  const displayMaxTokens = isEditing ? editState.value : String(model.config.maxTokens ?? 64000);
+                  const modelName = model.name;
 
                   return (
                     <Box
-                      key={model.name}
+                      key={modelName}
+                      data-testid={`model-row-${provider.name}-${modelName}`}
                       sx={{
-                        px: 2,
-                        py: 1,
-                        borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                        px: 1.75,
+                        py: 0.75,
+                        borderTop: `1px solid ${alpha(theme.palette.divider, 0.45)}`,
                         display: "flex",
                         alignItems: "center",
                         gap: 1,
+                        "&:hover .model-actions": { opacity: 1 },
+                        "& .model-actions": {
+                          opacity: 0,
+                          transition: `opacity ${DURATIONS.FAST}ms ${EASING.EASE_OUT}`,
+                        },
                       }}
-                      data-testid={`model-row-${provider.name}-${model.name}`}
                     >
+                      {/* Model name */}
                       <Typography
                         sx={{
                           fontFamily: MONO_FONT,
@@ -525,82 +427,32 @@ function ProvidersEditorComponent({
                           color: "text.primary",
                           fontSize: "0.75rem",
                           flex: 1,
+                          minWidth: 0,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        {model.name}
+                        {modelName}
                       </Typography>
 
-                      {isEditing ? (
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <TextField
+                      {/* Delete action */}
+                      <Stack direction="row" spacing={0.25} alignItems="center" className="model-actions">
+                        <Tooltip title="Delete model">
+                          <IconButton
                             size="small"
-                            type="number"
-                            value={editState.value}
-                            onChange={(e) =>
-                              setEditingMaxTokens((prev) => ({
-                                ...prev,
-                                [editKey]: { ...prev[editKey]!, value: e.target.value, error: null },
-                              }))
-                            }
-                            error={!!editState.error}
-                            helperText={editState.error}
-                            inputProps={{
-                              "data-testid": `model-max-tokens-${provider.name}-${model.name}`,
-                              min: 0,
+                            onClick={() => handleDeleteModel(provider.name, modelName)}
+                            data-testid={`model-delete-${provider.name}-${modelName}`}
+                            sx={{
+                              color: "text.disabled",
+                              transition: TRANSITIONS.control,
+                              "&:hover": { color: "error.main", bgcolor: alpha(theme.palette.error.main, 0.08) },
                             }}
-                            sx={{ width: 120 }}
-                          />
-                          <Button
-                            size="small"
-                            variant="contained"
-                            onClick={() => handleSaveMaxTokens(provider.name, model.name)}
-                            data-testid={`model-save-${provider.name}-${model.name}`}
                           >
-                            Save
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() =>
-                              setEditingMaxTokens((prev) => {
-                                const next = { ...prev };
-                                delete next[editKey];
-                                return next;
-                              })
-                            }
-                          >
-                            Cancel
-                          </Button>
-                        </Stack>
-                      ) : (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() =>
-                            startEditingMaxTokens(provider.name, model.name, model.config.maxTokens)
-                          }
-                          data-testid={`model-max-tokens-${provider.name}-${model.name}`}
-                          sx={{
-                            fontSize: "0.6875rem",
-                            fontFamily: MONO_FONT,
-                            minWidth: "auto",
-                          }}
-                        >
-                          {displayMaxTokens}
-                        </Button>
-                      )}
-
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteModel(provider.name, model.name)}
-                        data-testid={`model-delete-${provider.name}-${model.name}`}
-                        sx={{
-                          color: "text.secondary",
-                          "&:hover": { color: "error.main", bgcolor: alpha(theme.palette.error.main, 0.08) },
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </IconButton>
+                            <Trash2 size={13} />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
                     </Box>
                   );
                 })}
@@ -608,67 +460,56 @@ function ProvidersEditorComponent({
                 {/* Add Model Form */}
                 <Box
                   sx={{
-                    px: 2,
-                    py: 1.5,
-                    borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                    px: 1.75,
+                    py: 1.25,
+                    borderTop: `1px solid ${alpha(theme.palette.divider, 0.45)}`,
+                    bgcolor: alpha(providersColor, 0.02),
                     display: "flex",
                     flexDirection: "column",
-                    gap: 1,
-                    bgcolor: alpha(providersColor, 0.02),
+                    gap: 0.75,
                   }}
                 >
-                  <Typography
-                    sx={{
-                      fontSize: "0.6875rem",
-                      fontWeight: 500,
-                      fontFamily: MONO_FONT,
-                      color: "text.secondary",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.04em",
-                    }}
-                  >
-                    Add Model
-                  </Typography>
-                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                  <Stack direction="row" spacing={0.75} alignItems="flex-start">
                     <TextField
                       size="small"
                       placeholder="Model name"
                       value={modelState.name}
-                      onChange={(e) => handleNewModelNameChange(provider.name, e.target.value)}
-                      inputProps={{ "data-testid": `model-create-input-${provider.name}` }}
+                      onChange={(e) =>
+                        setNewModelStates((prev) => ({
+                          ...prev,
+                          [provider.name]: { ...(prev[provider.name] || { error: null }), name: e.target.value, error: null },
+                        }))
+                      }
+                      onKeyDown={(e) => { if (e.key === "Enter" && modelState.name) handleCreateModel(provider.name); }}
+                      inputProps={{
+                        "data-testid": `model-create-input-${provider.name}`,
+                        style: { fontFamily: MONO_FONT, fontSize: "0.75rem" },
+                      }}
                       sx={{ flex: 1 }}
                     />
-                    <TextField
-                      size="small"
-                      type="number"
-                      label="maxTokens"
-                      value={modelState.maxTokens}
-                      onChange={(e) => handleNewModelMaxTokensChange(provider.name, e.target.value)}
-                      inputProps={{
-                        "data-testid": `model-max-tokens-${provider.name}-new`,
-                        min: 0,
-                      }}
-                      sx={{ width: 100 }}
-                    />
                     <Button
-                      variant="contained"
+                      variant="outlined"
                       size="small"
                       onClick={() => handleCreateModel(provider.name)}
                       disabled={!modelState.name}
                       data-testid={`model-create-submit-${provider.name}`}
-                      startIcon={<Plus size={14} />}
+                      startIcon={<Plus size={13} />}
+                      sx={{
+                        fontSize: "0.7rem",
+                        color: providersColor,
+                        borderColor: alpha(providersColor, 0.35),
+                        fontWeight: 600,
+                        "&:hover": {
+                          bgcolor: alpha(providersColor, 0.06),
+                          borderColor: alpha(providersColor, 0.6),
+                        },
+                      }}
                     >
                       Add
                     </Button>
                   </Stack>
                   {modelState.error && (
-                    <Typography
-                      sx={{
-                        fontSize: "0.6875rem",
-                        color: "error.main",
-                        fontFamily: MONO_FONT,
-                      }}
-                    >
+                    <Typography sx={{ fontSize: "0.6875rem", color: "error.main", fontFamily: MONO_FONT }}>
                       {modelState.error}
                     </Typography>
                   )}
@@ -679,7 +520,6 @@ function ProvidersEditorComponent({
         );
       })}
 
-      {/* Confirm Dialog */}
       <ConfirmDialog
         open={confirmState.open}
         title={confirmState.title}

@@ -60,16 +60,14 @@ describe("readGlobalConfig", () => {
       JSON.stringify({
         config_path: ["/some/path"],
         providers: {
-          openai: {
-            "gpt-4": { type: "gpt", maxTokens: 8192 },
-          },
+          openai: ["gpt-4"],
         },
       }),
       "utf-8",
     );
     const result = await readGlobalConfig(validPath);
     expect(result.config_path).toEqual(["/some/path"]);
-    expect(result.providers?.openai?.["gpt-4"]).toBeDefined();
+    expect(result.providers?.openai).toContain("gpt-4");
   });
 
   it("returns parsed config from actual config/config.jsonc", async () => {
@@ -105,14 +103,8 @@ describe("extractGlobalModels", () => {
   it("extracts all provider/model strings from all providers without duplicates", () => {
     const config = {
       providers: {
-        openai: {
-          "gpt-5.4": { type: "gpt", maxTokens: 64000 },
-          "gpt-5.3-codex": { type: "gpt", maxTokens: 64000 },
-        },
-        "alibaba-coding-plan-cn": {
-          "kimi-k2.5": { type: "gpt", maxTokens: 64000 },
-          "glm-5": { type: "gpt", maxTokens: 64000 },
-        },
+        openai: ["gpt-5.4", "gpt-5.3-codex"],
+        "alibaba-coding-plan-cn": ["kimi-k2.5", "glm-5"],
       },
     };
     const models = extractGlobalModels(config);
@@ -126,8 +118,8 @@ describe("extractGlobalModels", () => {
   it("keeps different provider/model strings even with same model ID", () => {
     const config = {
       providers: {
-        providerA: { "shared-model": { type: "gpt" } },
-        providerB: { "shared-model": { type: "gpt" } },
+        providerA: ["shared-model"],
+        providerB: ["shared-model"],
       },
     };
     const models = extractGlobalModels(config);
@@ -156,12 +148,8 @@ describe("extractGlobalModelSources", () => {
   it("extracts structured source entries with correct provenance", () => {
     const config = {
       providers: {
-        openai: {
-          "gpt-5.4": { type: "gpt", maxTokens: 64000 },
-        },
-        anthropic: {
-          "claude-sonnet-4-6": { type: "claude", maxTokens: 100000 },
-        },
+        openai: ["gpt-5.4"],
+        anthropic: ["claude-sonnet-4-6"],
       },
     };
     const sources = extractGlobalModelSources(config, "/custom/path/config.jsonc");
@@ -184,9 +172,7 @@ describe("extractGlobalModelSources", () => {
   it("deduplicates models within same provider", () => {
     const config = {
       providers: {
-        openai: {
-          "gpt-5.4": { type: "gpt", maxTokens: 32000 },
-        },
+        openai: ["gpt-5.4"],
       },
     };
     const sources = extractGlobalModelSources(config, "/path/config.jsonc");
@@ -197,7 +183,7 @@ describe("extractGlobalModelSources", () => {
   it("resolves relative config path to absolute", () => {
     const config = {
       providers: {
-        openai: { "gpt-5.4": { type: "gpt" } },
+        openai: ["gpt-5.4"],
       },
     };
     const sources = extractGlobalModelSources(config, "config/config.jsonc");

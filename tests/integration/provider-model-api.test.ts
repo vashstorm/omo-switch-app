@@ -58,7 +58,7 @@ describe("provider/model API integration", () => {
       });
       expect(response.status).toBe(201);
       const body = await response.json();
-      expect(body).toEqual({ name: "test-provider", models: {} });
+      expect(body).toEqual({ name: "test-provider", models: [] });
     });
 
     it("returns 400 for invalid provider name", async () => {
@@ -101,19 +101,19 @@ describe("provider/model API integration", () => {
       const response = await fetch(`${baseUrl}/api/config/providers/update-provider`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ models: { "model-a": { type: "openai", maxTokens: 4000 } } }),
+        body: JSON.stringify({ models: ["model-a"] }),
       });
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.name).toBe("update-provider");
-      expect(body.models).toEqual({ "model-a": { type: "openai", maxTokens: 4000 } });
+      expect(body.models).toEqual(["model-a"]);
     });
 
     it("returns 404 for missing provider", async () => {
       const response = await fetch(`${baseUrl}/api/config/providers/nonexistent`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ models: {} }),
+        body: JSON.stringify({ models: [] }),
       });
       expect(response.status).toBe(404);
       const body = await response.json();
@@ -152,7 +152,7 @@ describe("provider/model API integration", () => {
   });
 
   describe("POST /api/config/providers/:provider/models", () => {
-    it("creates a model with valid config", async () => {
+    it("creates a model with valid name", async () => {
       await fetch(`${baseUrl}/api/config/providers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -162,13 +162,11 @@ describe("provider/model API integration", () => {
       const response = await fetch(`${baseUrl}/api/config/providers/model-test-provider/models`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "gpt-4", type: "openai", maxTokens: 8000 }),
+        body: JSON.stringify({ name: "gpt-4" }),
       });
       expect(response.status).toBe(201);
       const body = await response.json();
       expect(body.name).toBe("gpt-4");
-      expect(body.type).toBe("openai");
-      expect(body.maxTokens).toBe(8000);
     });
 
     it("returns 400 for invalid model name", async () => {
@@ -229,7 +227,7 @@ describe("provider/model API integration", () => {
   });
 
   describe("PUT /api/config/providers/:provider/models/:model", () => {
-    it("updates model maxTokens", async () => {
+    it("returns 400 because array-format providers do not support config updates", async () => {
       await fetch(`${baseUrl}/api/config/providers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -239,20 +237,20 @@ describe("provider/model API integration", () => {
       await fetch(`${baseUrl}/api/config/providers/update-model-provider/models`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "update-model", maxTokens: 1000 }),
+        body: JSON.stringify({ name: "update-model" }),
       });
 
       const response = await fetch(`${baseUrl}/api/config/providers/update-model-provider/models/update-model`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maxTokens: 5000 }),
+        body: JSON.stringify({}),
       });
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
       const body = await response.json();
-      expect(body.maxTokens).toBe(5000);
+      expect(body.error).toBe("VALIDATION_ERROR");
     });
 
-    it("preserves unknown fields", async () => {
+    it("rejects model config fields", async () => {
       await fetch(`${baseUrl}/api/config/providers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -262,7 +260,7 @@ describe("provider/model API integration", () => {
       await fetch(`${baseUrl}/api/config/providers/preserve-provider/models`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "preserve-model", type: "custom", customField: "value" }),
+        body: JSON.stringify({ name: "preserve-model" }),
       });
 
       const response = await fetch(`${baseUrl}/api/config/providers/preserve-provider/models/preserve-model`, {
@@ -270,11 +268,9 @@ describe("provider/model API integration", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ maxTokens: 3000 }),
       });
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
       const body = await response.json();
-      expect(body.type).toBe("custom");
-      expect(body.customField).toBe("value");
-      expect(body.maxTokens).toBe(3000);
+      expect(body.error).toBe("VALIDATION_ERROR");
     });
 
     it("returns 404 for missing model", async () => {
@@ -287,7 +283,7 @@ describe("provider/model API integration", () => {
       const response = await fetch(`${baseUrl}/api/config/providers/missing-provider/models/nonexistent`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maxTokens: 1000 }),
+        body: JSON.stringify({}),
       });
       expect(response.status).toBe(404);
     });
@@ -316,7 +312,7 @@ describe("provider/model API integration", () => {
 
       const getResponse = await fetch(`${baseUrl}/api/config/providers`);
       const getBody = await getResponse.json();
-      expect(getBody.providers["delete-model-provider"]).not.toHaveProperty("to-delete");
+      expect(getBody.providers["delete-model-provider"]).not.toContain("to-delete");
     });
 
     it("returns 404 for missing model", async () => {
@@ -336,7 +332,7 @@ describe("provider/model API integration", () => {
   });
 
   describe("Full CRUD round-trip", () => {
-    it("create provider -> create model -> get -> update -> get -> delete model -> get -> delete provider -> get", async () => {
+    it("create provider -> create model -> get -> delete model -> get -> delete provider -> get", async () => {
       await fetch(`${baseUrl}/api/config/providers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -346,27 +342,18 @@ describe("provider/model API integration", () => {
       await fetch(`${baseUrl}/api/config/providers/roundtrip-provider/models`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "roundtrip-model", maxTokens: 1000 }),
+        body: JSON.stringify({ name: "roundtrip-model" }),
       });
 
       let providers = await (await fetch(`${baseUrl}/api/config/providers`)).json();
-      expect(providers.providers["roundtrip-provider"]).toHaveProperty("roundtrip-model");
-
-      await fetch(`${baseUrl}/api/config/providers/roundtrip-provider/models/roundtrip-model`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maxTokens: 2000 }),
-      });
-
-      providers = await (await fetch(`${baseUrl}/api/config/providers`)).json();
-      expect(providers.providers["roundtrip-provider"]["roundtrip-model"].maxTokens).toBe(2000);
+      expect(providers.providers["roundtrip-provider"]).toContain("roundtrip-model");
 
       await fetch(`${baseUrl}/api/config/providers/roundtrip-provider/models/roundtrip-model`, {
         method: "DELETE",
       });
 
       providers = await (await fetch(`${baseUrl}/api/config/providers`)).json();
-      expect(providers.providers["roundtrip-provider"]).not.toHaveProperty("roundtrip-model");
+      expect(providers.providers["roundtrip-provider"]).not.toContain("roundtrip-model");
 
       await fetch(`${baseUrl}/api/config/providers/roundtrip-provider`, {
         method: "DELETE",
