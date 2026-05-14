@@ -180,24 +180,32 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
       data-testid={`category-card-${id}`}
       id={`category-${id}`}
       sx={{
+        position: "relative",
         borderRadius: `${dTokens.radii.card}px`,
         overflow: "hidden",
         transition: TRANSITIONS.control,
-        bgcolor: dTokens.colors.neutral.elevatedSurface,
-        borderColor: collapsed ? dTokens.colors.neutral.divider : alpha(categoryColor, 0.24),
-        boxShadow: "none",
+        bgcolor: isDark ? dTokens.colors.neutral.elevatedSurface : "#f7f3ed",
+        borderColor: collapsed ? dTokens.colors.neutral.divider : alpha(categoryColor, 0.18),
+        boxShadow: isDark ? "none" : "0 10px 28px rgba(20, 20, 19, 0.04)",
         "&:hover": {
-          borderColor: alpha(categoryColor, 0.42),
-          bgcolor: isDark ? dTokens.colors.neutral.elevatedSurface : "#f3ede4",
+          borderColor: alpha(categoryColor, 0.32),
+          bgcolor: isDark ? alpha(categoryColor, 0.04) : "#f5efe7",
+          boxShadow: isDark ? "none" : "0 14px 34px rgba(20, 20, 19, 0.06)",
         }
       }}
     >
       <Box
         sx={{
-          height: 3,
-          bgcolor: collapsed ? "transparent" : alpha(categoryColor, 0.85),
+          position: "absolute",
+          top: 0,
+          left: 16,
+          right: 16,
+          height: 2,
+          borderRadius: "0 0 999px 999px",
+          bgcolor: collapsed ? "transparent" : alpha(categoryColor, isDark ? 0.65 : 0.5),
           transition: TRANSITIONS.control,
-          opacity: 0.85,
+          opacity: collapsed ? 0 : 1,
+          pointerEvents: "none",
         }}
       />
       <Box
@@ -205,11 +213,12 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        py: 0.75,
-        px: 1.25,
-        bgcolor: collapsed ? "transparent" : alpha(categoryColor, isDark ? 0.1 : 0.06),
+        minHeight: 58,
+        py: 0.9,
+        px: 1.5,
+        bgcolor: collapsed ? "transparent" : alpha(categoryColor, isDark ? 0.08 : 0.045),
         borderBottom: "1px solid",
-        borderColor: collapsed ? "transparent" : alpha(theme.palette.divider, 0.4),
+        borderColor: collapsed ? "transparent" : alpha(theme.palette.divider, isDark ? 0.46 : 0.7),
         transition: TRANSITIONS.control,
         }}
       >
@@ -221,13 +230,14 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: 1.5,
+            gap: 1.25,
             borderRadius: `${dTokens.radii.control}px`,
             padding: "6px 8px",
             flex: 1,
+            minWidth: 0,
             justifyContent: "flex-start",
             "&:hover": {
-              bgcolor: alpha(categoryColor, isDark ? 0.14 : 0.09),
+              bgcolor: alpha(categoryColor, isDark ? 0.13 : 0.075),
             }
           }}
         >
@@ -236,12 +246,13 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 24,
-              height: 24,
+              width: 28,
+              height: 28,
               borderRadius: `${dTokens.radii.control - 2}px`,
               bgcolor: collapsed ? alpha(categoryColor, 0.12) : categoryColor,
               color: collapsed ? "text.secondary" : dTokens.colors.neutral.surface,
               transition: `all ${DURATIONS.NORMAL}ms ${EASING.EASE_OUT}`,
+              flexShrink: 0,
             }}
           >
             {collapsed ? (
@@ -253,12 +264,15 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
           <Typography
             component="h4"
             sx={{
-              fontWeight: 500,
+              fontWeight: 600,
               fontFamily: MONO_FONT,
               color: collapsed ? "text.primary" : categoryColor,
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               letterSpacing: 0,
               transition: TRANSITIONS.control,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             {id}
@@ -273,6 +287,7 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
             sx={{
               color: "text.disabled",
               p: 0.5,
+              flexShrink: 0,
               "&:hover": { color: "error.main", bgcolor: alpha(theme.palette.error.main, 0.06) }
             }}
           >
@@ -282,14 +297,21 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
       </Box>
 
       <Collapse in={!collapsed} id={`category-body-${id}`} unmountOnExit>
-        <CardContent sx={{ p: 2, pt: 1.5, "&:last-child": { pb: 2 } }}>
-          <Stack spacing={2}>
+        <CardContent
+          sx={{
+            p: 2.25,
+            pt: 2,
+            bgcolor: isDark ? alpha(theme.palette.common.white, 0.015) : "#fbfaf7",
+            "&:last-child": { pb: 2.25 },
+          }}
+        >
+          <Stack spacing={1.75}>
             <Box>
               <Box
                 sx={{
                   display: "grid",
                   gridTemplateColumns: { xs: "1fr 1fr", sm: "2fr 1fr 1fr" },
-                  gap: 2,
+                  gap: { xs: 1.5, sm: 2 },
                   mb: 0.5,
                   alignItems: "start",
                 }}

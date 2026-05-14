@@ -229,24 +229,32 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
       data-testid={`agent-card-${id}`}
       id={`agent-${id}`}
       sx={{
+        position: "relative",
         borderRadius: `${tokens.radii.card}px`,
         overflow: "hidden",
         transition: TRANSITIONS.control,
-        bgcolor: tokens.colors.neutral.elevatedSurface,
-        borderColor: collapsed ? tokens.colors.neutral.divider : alpha(agentColor, 0.24),
-        boxShadow: "none",
+        bgcolor: isDark ? tokens.colors.neutral.elevatedSurface : "#f7f3ed",
+        borderColor: collapsed ? tokens.colors.neutral.divider : alpha(agentColor, 0.18),
+        boxShadow: isDark ? "none" : "0 10px 28px rgba(20, 20, 19, 0.04)",
         "&:hover": {
-          borderColor: alpha(agentColor, 0.42),
-          bgcolor: isDark ? tokens.colors.neutral.elevatedSurface : "#f3ede4",
+          borderColor: alpha(agentColor, 0.32),
+          bgcolor: isDark ? alpha(agentColor, 0.04) : "#f5efe7",
+          boxShadow: isDark ? "none" : "0 14px 34px rgba(20, 20, 19, 0.06)",
         }
       }}
     >
       <Box
         sx={{
-          height: 3,
-          bgcolor: collapsed ? "transparent" : alpha(agentColor, 0.85),
+          position: "absolute",
+          top: 0,
+          left: 16,
+          right: 16,
+          height: 2,
+          borderRadius: "0 0 999px 999px",
+          bgcolor: collapsed ? "transparent" : alpha(agentColor, isDark ? 0.65 : 0.5),
           transition: TRANSITIONS.control,
-          opacity: 0.85,
+          opacity: collapsed ? 0 : 1,
+          pointerEvents: "none",
         }}
       />
       <Box
@@ -254,11 +262,12 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          py: 0.75,
-          px: 1.25,
-          bgcolor: collapsed ? "transparent" : alpha(agentColor, isDark ? 0.1 : 0.06),
+          minHeight: 58,
+          py: 0.9,
+          px: 1.5,
+          bgcolor: collapsed ? "transparent" : alpha(agentColor, isDark ? 0.08 : 0.045),
           borderBottom: "1px solid",
-          borderColor: collapsed ? "transparent" : alpha(theme.palette.divider, 0.4),
+          borderColor: collapsed ? "transparent" : alpha(theme.palette.divider, isDark ? 0.46 : 0.7),
           transition: TRANSITIONS.control,
         }}
       >
@@ -271,13 +280,14 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: 1.5,
+            gap: 1.25,
             borderRadius: `${tokens.radii.control}px`,
             padding: "6px 8px",
             flex: 1,
+            minWidth: 0,
             justifyContent: "flex-start",
             "&:hover": {
-              bgcolor: alpha(agentColor, isDark ? 0.14 : 0.09),
+              bgcolor: alpha(agentColor, isDark ? 0.13 : 0.075),
             }
           }}
         >
@@ -286,12 +296,13 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 24,
-              height: 24,
+              width: 28,
+              height: 28,
               borderRadius: `${tokens.radii.control - 2}px`,
               bgcolor: collapsed ? alpha(agentColor, 0.12) : agentColor,
               color: collapsed ? "text.secondary" : "common.white",
               transition: TRANSITIONS.control,
+              flexShrink: 0,
             }}
           >
             {collapsed ? (
@@ -303,12 +314,15 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
           <Typography
             component="h4"
             sx={{
-              fontWeight: 500,
+              fontWeight: 600,
               fontFamily: MONO_FONT,
               color: collapsed ? "text.primary" : agentColor,
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               letterSpacing: 0,
               transition: TRANSITIONS.control,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             {id}
@@ -320,13 +334,20 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
               size="small"
               variant="outlined"
               sx={{
-                height: 20,
+                height: 22,
+                maxWidth: { xs: 160, md: 520 },
                 fontSize: "0.6875rem",
                 fontWeight: 500,
-                borderColor: alpha(agentColor, 0.15),
+                borderColor: alpha(agentColor, 0.18),
+                bgcolor: alpha(agentColor, isDark ? 0.06 : 0.035),
                 color: "text.secondary",
                 borderRadius: 999,
                 transition: TRANSITIONS.control,
+                "& .MuiChip-label": {
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                },
               }}
             />
           )}
@@ -340,6 +361,7 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                 sx={{
                   color: "text.disabled",
                   p: 0.5,
+                  flexShrink: 0,
                   "&:hover": { color: "error.main", bgcolor: alpha(theme.palette.error.main, 0.06) }
                 }}
               >
@@ -349,9 +371,16 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
           </Box>
 
           <Collapse in={!collapsed} id={`agent-body-${id}`} unmountOnExit>
-            <CardContent sx={{ p: 2, pt: 1.5, "&:last-child": { pb: 2 } }}>
+            <CardContent
+              sx={{
+                p: 2.25,
+                pt: 2,
+                bgcolor: isDark ? alpha(theme.palette.common.white, 0.015) : "#fbfaf7",
+                "&:last-child": { pb: 2.25 },
+              }}
+            >
           <Stack
-            spacing={1.5}
+            spacing={1.75}
             sx={{
               "& .MuiInputBase-input": {
                 textAlign: "left",
@@ -376,7 +405,7 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                        ? "minmax(0, 2.5fr) minmax(110px, 0.9fr) minmax(110px, 0.8fr) minmax(130px, 1fr)"
                        : "minmax(0, 2.75fr) minmax(120px, 1fr) minmax(110px, 0.9fr)",
                    },
-                   gap: 2,
+                   gap: { xs: 1.5, sm: 2 },
                    mb: 0.5,
                    alignItems: "start",
                  }}
@@ -618,9 +647,9 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                   mt: 1, 
                   pt: 2, 
                   borderTop: `1px solid ${alpha(theme.palette.divider, 0.6)}`,
-                  bgcolor: alpha(agentColor, isDark ? 0.08 : 0.045),
-                  mx: -2,
-                  px: 2,
+                  bgcolor: alpha(agentColor, isDark ? 0.065 : 0.035),
+                  mx: -2.25,
+                  px: 2.25,
                   pb: 1.5,
                   borderRadius: `${tokens.radii.control}px`,
                 }}
