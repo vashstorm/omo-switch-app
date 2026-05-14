@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useMemo } from "react";
+import { memo, useState, useCallback } from "react";
 import {
   Card,
   Box,
@@ -19,8 +19,6 @@ import {
   ChevronRight,
   Trash2,
   Plus,
-  Search,
-  XCircle,
   Server,
 } from "lucide-react";
 import { TRANSITIONS, DURATIONS, EASING } from "../../theme/motionTokens";
@@ -80,19 +78,10 @@ function ProvidersEditorComponent({
   const [newModelStates, setNewModelStates] = useState<
     Record<string, { name: string; error: string | null }>
   >({});
-  const [providerSearch, setProviderSearch] = useState("");
 
   const handleToggleSection = useCallback((name: string) => {
     setCollapsedSections((prev) => ({ ...prev, [name]: !prev[name] }));
   }, []);
-
-  const normalizedProviderSearch = providerSearch.trim().toLowerCase();
-  const filteredProviders = useMemo(() => {
-    if (!normalizedProviderSearch) return providersList;
-    return providersList.filter((provider) =>
-      provider.name.toLowerCase().includes(normalizedProviderSearch)
-    );
-  }, [providersList, normalizedProviderSearch]);
 
   const handleCreateProvider = useCallback(async () => {
     try { validateProviderName(newProviderName); } catch (err: unknown) {
@@ -193,7 +182,7 @@ function ProvidersEditorComponent({
     >
       {error && <Alert severity="error" sx={{ mb: 0.5, fontSize: "0.8rem" }}>{error}</Alert>}
 
-      {/* Sticky Toolbar: Search + Add Provider */}
+      {/* Sticky Toolbar: Add Provider */}
       <Box
         sx={{
           position: "sticky",
@@ -208,71 +197,6 @@ function ProvidersEditorComponent({
           gap: 1,
         }}
       >
-        {/* Provider Search */}
-        {providersList.length > 0 && (
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.75,
-              px: 1,
-              py: 0.625,
-              borderRadius: 1.5,
-              border: `1px solid ${alpha(providersColor, 0.12)}`,
-              bgcolor: softPaper,
-              transition: TRANSITIONS.control,
-              "&:focus-within": {
-                borderColor: alpha(providersColor, 0.35),
-                boxShadow: `0 0 0 3px ${alpha(providersColor, 0.06)}`,
-              },
-            }}
-          >
-            <Search size={14} color={alpha(theme.palette.text.secondary as string, 0.72)} />
-            <TextField
-              size="small"
-              placeholder="Filter providers…"
-              value={providerSearch}
-              onChange={(e) => setProviderSearch(e.target.value)}
-              fullWidth
-              variant="standard"
-              InputProps={{
-                disableUnderline: true,
-                endAdornment: normalizedProviderSearch ? (
-                  <IconButton
-                    size="small"
-                    onClick={() => setProviderSearch("")}
-                    sx={{ p: 0.25, color: "text.secondary", "&:hover": { color: "text.primary" } }}
-                  >
-                    <XCircle size={14} />
-                  </IconButton>
-                ) : null,
-              }}
-              inputProps={{
-                style: { fontFamily: MONO_FONT, fontSize: "0.78rem", padding: "4px 0" },
-              }}
-              sx={{
-                "& .MuiInputBase-root": {
-                  bgcolor: "transparent",
-                  "&::before, &::after": { display: "none" },
-                },
-              }}
-            />
-            {normalizedProviderSearch && (
-              <Typography
-                sx={{
-                  fontSize: "0.65rem",
-                  fontFamily: MONO_FONT,
-                  color: "text.secondary",
-                  whiteSpace: "nowrap",
-                  px: 0.5,
-                }}
-              >
-                {filteredProviders.length} / {providersList.length}
-              </Typography>
-            )}
-          </Box>
-        )}
-
         {/* Add Provider Form */}
         <Box
           data-testid="provider-create-section"
@@ -374,35 +298,8 @@ function ProvidersEditorComponent({
         </Box>
       )}
 
-      {/* No search results */}
-      {providersList.length > 0 && filteredProviders.length === 0 && (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 1,
-            py: 5,
-            color: "text.disabled",
-          }}
-        >
-          <Search size={28} strokeWidth={1.25} />
-          <Typography sx={{ fontSize: "0.8125rem", fontFamily: MONO_FONT }}>
-            No providers match "{providerSearch}"
-          </Typography>
-          <Button
-            size="small"
-            onClick={() => setProviderSearch("")}
-            sx={{ color: providersColor, fontSize: "0.75rem", textTransform: "none" }}
-          >
-            Clear search
-          </Button>
-        </Box>
-      )}
-
       {/* Provider Sections */}
-      {filteredProviders.map((provider) => {
+      {providersList.map((provider) => {
         const collapsed = !!collapsedSections[provider.name];
         const modelState = newModelStates[provider.name] || { name: "", error: null };
 
