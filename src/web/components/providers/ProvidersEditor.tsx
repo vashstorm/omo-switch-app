@@ -63,6 +63,10 @@ function ProvidersEditorComponent({
 }: ProvidersEditorProps) {
   const theme = useTheme();
   const providersColor = (theme as any).sectionColors?.providers ?? "#6366F1";
+  const isDark = theme.palette.mode === "dark";
+  const subtleBorder = alpha(theme.palette.text.primary, isDark ? 0.14 : 0.08);
+  const quietBorder = alpha(theme.palette.text.primary, isDark ? 0.1 : 0.055);
+  const softPaper = alpha(theme.palette.background.paper, isDark ? 0.72 : 0.88);
 
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [confirmState, setConfirmState] = useState<ConfirmState>({
@@ -162,7 +166,7 @@ function ProvidersEditorComponent({
   return (
     <Box
       data-testid="providers-editor"
-      sx={{ display: "flex", flexDirection: "column", gap: 1 }}
+      sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}
     >
       {error && <Alert severity="error" sx={{ mb: 0.5, fontSize: "0.8rem" }}>{error}</Alert>}
 
@@ -173,14 +177,15 @@ function ProvidersEditorComponent({
           display: "flex",
           alignItems: "flex-start",
           gap: 1,
-          p: 1.25,
-          borderRadius: 1.5,
-          border: `1px dashed ${alpha(providersColor, 0.3)}`,
-          bgcolor: alpha(providersColor, 0.02),
+          p: 1,
+          borderRadius: 2,
+          border: `1px solid ${alpha(providersColor, 0.16)}`,
+          bgcolor: softPaper,
           transition: TRANSITIONS.control,
           "&:focus-within": {
-            border: `1px dashed ${alpha(providersColor, 0.55)}`,
-            bgcolor: alpha(providersColor, 0.04),
+            borderColor: alpha(providersColor, 0.38),
+            bgcolor: alpha(theme.palette.background.paper, isDark ? 0.86 : 0.96),
+            boxShadow: `0 0 0 3px ${alpha(providersColor, 0.08)}`,
           },
         }}
       >
@@ -196,6 +201,13 @@ function ProvidersEditorComponent({
           inputProps={{ "data-testid": "provider-create-input" }}
           sx={{
             flex: 1,
+            "& .MuiOutlinedInput-root": {
+              borderRadius: 1.5,
+              bgcolor: alpha(theme.palette.background.default, 0.5),
+              "& fieldset": { borderColor: subtleBorder },
+              "&:hover fieldset": { borderColor: alpha(providersColor, 0.3) },
+              "&.Mui-focused fieldset": { borderColor: alpha(providersColor, 0.62) },
+            },
             "& .MuiInputBase-input": { fontFamily: MONO_FONT, fontSize: "0.8rem" },
           }}
         />
@@ -209,10 +221,13 @@ function ProvidersEditorComponent({
           sx={{
             bgcolor: providersColor,
             "&:hover": { bgcolor: alpha(providersColor, 0.85) },
-            boxShadow: `0 2px 8px ${alpha(providersColor, 0.3)}`,
+            boxShadow: "none",
+            borderRadius: 1.5,
             fontWeight: 600,
             fontSize: "0.75rem",
             whiteSpace: "nowrap",
+            minWidth: 86,
+            height: 40,
           }}
         >
           Add
@@ -253,9 +268,15 @@ function ProvidersEditorComponent({
             sx={{
               overflow: "hidden",
               transition: TRANSITIONS.control,
-              boxShadow: collapsed ? "none" : `0 2px 10px ${alpha(providersColor, 0.08)}`,
-              border: `1px solid ${collapsed ? alpha(theme.palette.divider, 0.6) : alpha(providersColor, 0.18)}`,
-              "&:hover": { boxShadow: `0 4px 16px ${alpha(providersColor, 0.12)}` },
+              borderRadius: 2,
+              backgroundImage: "none",
+              bgcolor: softPaper,
+              boxShadow: collapsed ? "none" : `0 10px 28px ${alpha(theme.palette.common.black, isDark ? 0.22 : 0.05)}`,
+              border: `1px solid ${collapsed ? subtleBorder : alpha(providersColor, 0.16)}`,
+              "&:hover": {
+                borderColor: alpha(providersColor, 0.26),
+                boxShadow: `0 12px 32px ${alpha(theme.palette.common.black, isDark ? 0.26 : 0.07)}`,
+              },
             }}
             data-testid={`provider-section-${provider.name}`}
             id={`provider-${provider.name}`}
@@ -263,9 +284,9 @@ function ProvidersEditorComponent({
             {/* Accent top bar — always visible, dims when collapsed */}
             <Box
               sx={{
-                height: 2,
+                height: 1,
                 bgcolor: providersColor,
-                opacity: collapsed ? 0.25 : 0.85,
+                opacity: collapsed ? 0.18 : 0.5,
                 transition: `opacity ${DURATIONS.NORMAL}ms ${EASING.EASE_OUT}`,
               }}
             />
@@ -273,9 +294,9 @@ function ProvidersEditorComponent({
             {/* Provider header row */}
             <Box
               sx={{
-                py: 0.5,
+                py: 0.75,
                 px: 1,
-                bgcolor: collapsed ? "transparent" : alpha(providersColor, 0.025),
+                bgcolor: collapsed ? "transparent" : alpha(providersColor, isDark ? 0.045 : 0.028),
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -296,7 +317,8 @@ function ProvidersEditorComponent({
                   flex: 1,
                   justifyContent: "flex-start",
                   borderRadius: 1.5,
-                  p: "5px 8px",
+                  minWidth: 0,
+                  p: "6px 8px",
                   "&:hover": { bgcolor: alpha(providersColor, 0.05) },
                   "&:focus-visible": {
                     outline: `2px solid ${alpha(providersColor, 0.5)}`,
@@ -313,8 +335,9 @@ function ProvidersEditorComponent({
                     width: 22,
                     height: 22,
                     borderRadius: 1,
-                    bgcolor: collapsed ? alpha(providersColor, 0.08) : providersColor,
-                    color: collapsed ? "text.secondary" : "common.white",
+                    bgcolor: collapsed ? alpha(providersColor, 0.07) : alpha(providersColor, 0.12),
+                    color: providersColor,
+                    border: `1px solid ${alpha(providersColor, collapsed ? 0.12 : 0.22)}`,
                     transition: TRANSITIONS.control,
                     "& svg": {
                       transition: `transform ${DURATIONS.NORMAL}ms ${EASING.EASE_OUT}`,
@@ -332,8 +355,12 @@ function ProvidersEditorComponent({
                     fontWeight: 600,
                     fontFamily: MONO_FONT,
                     color: collapsed ? "text.secondary" : "text.primary",
-                    letterSpacing: "-0.01em",
+                    letterSpacing: 0,
                     transition: `color ${DURATIONS.NORMAL}ms ${EASING.EASE_OUT}`,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {provider.name}
@@ -346,8 +373,9 @@ function ProvidersEditorComponent({
                     fontSize: "0.6rem",
                     fontFamily: MONO_FONT,
                     height: 18,
-                    bgcolor: collapsed ? alpha(theme.palette.divider, 0.5) : alpha(providersColor, 0.12),
-                    color: collapsed ? "text.disabled" : providersColor,
+                    bgcolor: collapsed ? alpha(theme.palette.text.primary, isDark ? 0.08 : 0.04) : alpha(providersColor, 0.1),
+                    color: collapsed ? "text.secondary" : providersColor,
+                    border: `1px solid ${alpha(collapsed ? theme.palette.text.secondary : providersColor, collapsed ? 0.1 : 0.12)}`,
                     fontWeight: 600,
                     transition: TRANSITIONS.control,
                     "& .MuiChip-label": { px: 0.75 },
@@ -361,8 +389,9 @@ function ProvidersEditorComponent({
                   onClick={() => handleDeleteProvider(provider.name)}
                   data-testid={`provider-delete-${provider.name}`}
                   sx={{
-                    color: "text.disabled",
+                    color: alpha(theme.palette.text.secondary, 0.72),
                     transition: TRANSITIONS.control,
+                    opacity: 0.72,
                     "&:hover": { color: "error.main", bgcolor: alpha(theme.palette.error.main, 0.08) },
                   }}
                 >
@@ -375,17 +404,23 @@ function ProvidersEditorComponent({
               <Box
                 id={`provider-body-${provider.name}`}
                 sx={{
-                  borderTop: `1px solid ${alpha(providersColor, 0.15)}`,
+                  borderTop: `1px solid ${subtleBorder}`,
                   borderBottomLeftRadius: radii.card,
                   borderBottomRightRadius: radii.card,
+                  bgcolor: alpha(theme.palette.background.default, isDark ? 0.26 : 0.36),
                 }}
               >
                 {/* Models List */}
                 {provider.models.length === 0 && (
                   <Box
                     sx={{
-                      px: 2,
-                      py: 1.5,
+                      mx: 1,
+                      mt: 1,
+                      px: 1.25,
+                      py: 1,
+                      borderRadius: 1.5,
+                      border: `1px dashed ${subtleBorder}`,
+                      bgcolor: alpha(theme.palette.background.paper, 0.48),
                       display: "flex",
                       alignItems: "center",
                       gap: 1,
@@ -398,7 +433,7 @@ function ProvidersEditorComponent({
                   </Box>
                 )}
 
-                {provider.models.map((model) => {
+                {provider.models.map((model, modelIndex) => {
                   const modelName = model.name;
 
                   return (
@@ -406,15 +441,25 @@ function ProvidersEditorComponent({
                       key={modelName}
                       data-testid={`model-row-${provider.name}-${modelName}`}
                       sx={{
-                        px: 1.75,
+                        mx: 1,
+                        mt: modelIndex === 0 ? 1 : 0.5,
+                        px: 1.25,
                         py: 0.75,
-                        borderTop: `1px solid ${alpha(theme.palette.divider, 0.45)}`,
+                        minHeight: 38,
+                        borderRadius: 1.5,
+                        border: `1px solid ${quietBorder}`,
+                        bgcolor: alpha(theme.palette.background.paper, 0.72),
                         display: "flex",
                         alignItems: "center",
                         gap: 1,
+                        transition: TRANSITIONS.control,
+                        "&:hover": {
+                          borderColor: alpha(providersColor, 0.22),
+                          bgcolor: alpha(theme.palette.background.paper, 0.96),
+                        },
                         "&:hover .model-actions": { opacity: 1 },
                         "& .model-actions": {
-                          opacity: 0,
+                          opacity: 0.38,
                           transition: `opacity ${DURATIONS.FAST}ms ${EASING.EASE_OUT}`,
                         },
                       }}
@@ -444,7 +489,7 @@ function ProvidersEditorComponent({
                             onClick={() => handleDeleteModel(provider.name, modelName)}
                             data-testid={`model-delete-${provider.name}-${modelName}`}
                             sx={{
-                              color: "text.disabled",
+                              color: "text.secondary",
                               transition: TRANSITIONS.control,
                               "&:hover": { color: "error.main", bgcolor: alpha(theme.palette.error.main, 0.08) },
                             }}
@@ -460,16 +505,31 @@ function ProvidersEditorComponent({
                 {/* Add Model Form */}
                 <Box
                   sx={{
-                    px: 1.75,
-                    py: 1.25,
-                    borderTop: `1px solid ${alpha(theme.palette.divider, 0.45)}`,
-                    bgcolor: alpha(providersColor, 0.02),
+                    px: 1,
+                    pt: provider.models.length > 0 ? 0.75 : 1,
+                    pb: 1,
+                    bgcolor: "transparent",
                     display: "flex",
                     flexDirection: "column",
                     gap: 0.75,
                   }}
                 >
-                  <Stack direction="row" spacing={0.75} alignItems="flex-start">
+                  <Stack
+                    direction="row"
+                    spacing={0.75}
+                    alignItems="flex-start"
+                    sx={{
+                      p: 0.75,
+                      borderRadius: 1.5,
+                      border: `1px solid ${quietBorder}`,
+                      bgcolor: alpha(theme.palette.background.paper, 0.58),
+                      transition: TRANSITIONS.control,
+                      "&:focus-within": {
+                        borderColor: alpha(providersColor, 0.36),
+                        boxShadow: `0 0 0 3px ${alpha(providersColor, 0.07)}`,
+                      },
+                    }}
+                  >
                     <TextField
                       size="small"
                       placeholder="Model name"
@@ -485,7 +545,16 @@ function ProvidersEditorComponent({
                         "data-testid": `model-create-input-${provider.name}`,
                         style: { fontFamily: MONO_FONT, fontSize: "0.75rem" },
                       }}
-                      sx={{ flex: 1 }}
+                      sx={{
+                        flex: 1,
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: 1.25,
+                          bgcolor: alpha(theme.palette.background.default, 0.42),
+                          "& fieldset": { borderColor: subtleBorder },
+                          "&:hover fieldset": { borderColor: alpha(providersColor, 0.32) },
+                          "&.Mui-focused fieldset": { borderColor: alpha(providersColor, 0.58) },
+                        },
+                      }}
                     />
                     <Button
                       variant="outlined"
@@ -499,6 +568,9 @@ function ProvidersEditorComponent({
                         color: providersColor,
                         borderColor: alpha(providersColor, 0.35),
                         fontWeight: 600,
+                        borderRadius: 1.25,
+                        minWidth: 74,
+                        height: 38,
                         "&:hover": {
                           bgcolor: alpha(providersColor, 0.06),
                           borderColor: alpha(providersColor, 0.6),
