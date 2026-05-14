@@ -60,6 +60,33 @@ interface Toast {
 
 let toastCounter = 0;
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function mergeMiscData(
+  base?: Record<string, unknown>,
+  editable?: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...(base ?? {}) };
+
+  for (const [sectionName, sectionValue] of Object.entries(editable ?? {})) {
+    if (sectionValue === null) {
+      delete merged[sectionName];
+      continue;
+    }
+
+    const currentValue = merged[sectionName];
+    if (isPlainRecord(currentValue) && isPlainRecord(sectionValue)) {
+      merged[sectionName] = { ...currentValue, ...sectionValue };
+    } else {
+      merged[sectionName] = sectionValue;
+    }
+  }
+
+  return merged;
+}
+
 export function App() {
   const { resolvedTheme, setTheme } = useThemePreference();
   const theme = useTheme();
@@ -236,7 +263,15 @@ export function App() {
 
   useEffect(() => {
     if (currentProfile && !isSwitching) {
-      setEditableConfig(currentProfile.editable);
+      setEditableConfig({
+        ...currentProfile.editable,
+        misc: mergeMiscData(
+          currentProfile.rawMisc && Object.keys(currentProfile.rawMisc).length > 0
+            ? currentProfile.rawMisc
+            : currentProfile.editable.misc,
+          currentProfile.editable.misc,
+        ),
+      });
       setConflictError(null);
       setError(null);
       setIsDirty(false);
@@ -441,7 +476,15 @@ export function App() {
     setError(null);
     setSuccessMessage(null);
     if (currentProfile) {
-      setEditableConfig(currentProfile.editable);
+      setEditableConfig({
+        ...currentProfile.editable,
+        misc: mergeMiscData(
+          currentProfile.rawMisc && Object.keys(currentProfile.rawMisc).length > 0
+            ? currentProfile.rawMisc
+            : currentProfile.editable.misc,
+          currentProfile.editable.misc,
+        ),
+      });
       setIsDirty(false);
     }
   };
@@ -493,6 +536,17 @@ export function App() {
       return {
         ...current,
         categories: newCategoriesConfig,
+      };
+    });
+    setIsDirty(true);
+  }, []);
+
+  const handleMiscChange = useCallback((newMiscConfig: Record<string, unknown>) => {
+    setEditableConfig((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        misc: newMiscConfig,
       };
     });
     setIsDirty(true);
@@ -683,8 +737,12 @@ export function App() {
 
   const sharedMiscData = useMemo(() => {
     if (!currentProfile) return undefined;
-    return currentProfile.rawMisc;
-  }, [currentProfile]);
+    const rawMisc =
+      currentProfile.rawMisc && Object.keys(currentProfile.rawMisc).length > 0
+        ? currentProfile.rawMisc
+        : currentProfile.effective?.misc;
+    return mergeMiscData(rawMisc, editableConfig?.misc as Record<string, unknown> | undefined);
+  }, [currentProfile, editableConfig]);
 
   const pendingSyncReplaceImpact = useMemo<SyncReplaceImpact | null>(() => {
     if (!pendingSyncReplace || !editableConfig) return null;
@@ -903,6 +961,7 @@ export function App() {
           editableConfig ? (
             <MiscEditor
               miscData={sharedMiscData}
+              onChange={handleMiscChange}
               globalCollapseKey={globalCollapseKey}
               globalExpandKey={globalExpandKey}
               expandTargetId={expandMiscTarget}

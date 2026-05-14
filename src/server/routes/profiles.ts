@@ -58,33 +58,18 @@ const CategoryPatchSchema = z
   })
   .strict();
 
-const MiscPatchSchema = z
-  .object({
-    tmux: z
-      .union([
-        z
-          .object({
-            enabled: z.boolean().optional(),
-          })
-          .strict(),
-        z.null(),
-      ])
-      .optional(),
-    git_master: z
-      .union([
-        z
-          .object({
-            enabled: z.boolean().optional(),
-            commit_footer: z.boolean().optional(),
-            include_co_authored_by: z.boolean().optional(),
-            git_env_prefix: z.string().optional(),
-          })
-          .strict(),
-        z.null(),
-      ])
-      .optional(),
-  })
-  .strict();
+const JsonValueSchema: z.ZodType<unknown> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(JsonValueSchema),
+    z.record(z.string(), JsonValueSchema),
+  ]),
+);
+
+const MiscPatchSchema = z.record(z.string(), JsonValueSchema);
 
 const EditableConfigSchema = z
   .object({

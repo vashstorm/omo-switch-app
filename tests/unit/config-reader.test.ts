@@ -311,16 +311,20 @@ describe("config reader", () => {
 
       expect(result.editable.misc.tmux).toEqual({
         enabled: true,
+        socket_name: "editable-socket",
       });
       expect(result.editable.misc.git_master).toEqual({
         enabled: false,
+        strategy: "rebase",
       });
 
       expect(result.effective.misc.tmux).toEqual({
         enabled: true,
+        socket_name: "editable-socket",
       });
       expect(result.effective.misc.git_master).toEqual({
         enabled: false,
+        strategy: "rebase",
       });
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });

@@ -43,15 +43,6 @@ const CATEGORY_MANAGED_FIELDS: &[&str] = &[
     "fallback_models",
 ];
 
-const TMUX_MANAGED_FIELDS: &[&str] = &["enabled"];
-
-const GIT_MASTER_MANAGED_FIELDS: &[&str] = &[
-    "enabled",
-    "commit_footer",
-    "include_co_authored_by",
-    "git_env_prefix",
-];
-
 /// Check if a managed field value should be omitted (blank/default semantics).
 ///
 /// Mirrors TypeScript `shouldOmitField()` from managed-fields.ts.
@@ -502,50 +493,15 @@ fn normalize_category_config(
 
 /// Normalize misc config from raw value.
 fn normalize_misc_config(raw: &Value) -> MiscConfig {
-    if !raw.is_object() {
-        return MiscConfig {
-            tmux: None,
-            git_master: None,
-        };
-    }
-
-    let raw_obj = raw.as_object().unwrap();
-    let mut tmux_config: HashMap<String, Value> = HashMap::new();
-    let mut git_master_config: HashMap<String, Value> = HashMap::new();
-
-    if let Some(tmux) = raw_obj.get("tmux") {
-        if let Some(tmux_obj) = tmux.as_object() {
-            for key in TMUX_MANAGED_FIELDS {
-                if let Some(value) = tmux_obj.get(*key) {
-                    tmux_config.insert(key.to_string(), value.clone());
-                }
-            }
-        }
-    }
-
-    if let Some(git_master) = raw_obj.get("git_master") {
-        if let Some(gm_obj) = git_master.as_object() {
-            for key in GIT_MASTER_MANAGED_FIELDS {
-                if let Some(value) = gm_obj.get(*key) {
-                    git_master_config.insert(key.to_string(), value.clone());
-                }
-            }
-        }
-    }
-
-    let tmux = if tmux_config.is_empty() {
-        None
-    } else {
-        serde_json::from_value(Value::Object(tmux_config.into_iter().collect())).ok()
-    };
-
-    let git_master = if git_master_config.is_empty() {
-        None
-    } else {
-        serde_json::from_value(Value::Object(git_master_config.into_iter().collect())).ok()
-    };
-
-    MiscConfig { tmux, git_master }
+    raw.as_object()
+        .map(|raw_obj| {
+            raw_obj
+                .iter()
+                .filter(|(key, _)| key.as_str() != "$schema")
+                .map(|(key, value)| (key.clone(), value.clone()))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Build baseline config from opencode.jsonc data.
@@ -585,10 +541,7 @@ fn build_baseline(opencode_data: &Value, errors: &mut Vec<ConfigFieldError>) -> 
 
     let misc_source = get_misc_source(opencode_data);
     let misc = if misc_source.is_empty() {
-        MiscConfig {
-            tmux: None,
-            git_master: None,
-        }
+        MiscConfig::new()
     } else {
         normalize_misc_config(&Value::Object(misc_source.into_iter().collect()))
     };
@@ -724,11 +677,12 @@ fn merge_effective(baseline: &BaselineConfig, editable: &EditableConfig) -> Effe
 
     // Apply misc overrides
     if let Some(editable_misc) = &editable.misc {
-        if let Some(editable_tmux) = &editable_misc.tmux {
-            misc.tmux = Some(editable_tmux.clone());
-        }
-        if let Some(editable_git_master) = &editable_misc.git_master {
-            misc.git_master = Some(editable_git_master.clone());
+        for (key, value) in editable_misc {
+            if value.is_null() {
+                misc.remove(key);
+            } else {
+                misc.insert(key.clone(), value.clone());
+            }
         }
     }
 

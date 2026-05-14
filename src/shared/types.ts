@@ -97,6 +97,7 @@ export interface EditableCategoryPayload {
 export interface EditableMiscPayload {
   tmux?: TmuxConfig;
   git_master?: GitMasterConfig;
+  [key: string]: unknown;
 }
 
 export interface EditablePayload {

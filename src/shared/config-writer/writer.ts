@@ -139,12 +139,7 @@ function getMiscWritePath(
   existingData: Record<string, unknown>,
   sectionName: string,
 ): (string | number)[] {
-  const topLevelSection = existingData[sectionName];
-  if (
-    topLevelSection &&
-    typeof topLevelSection === "object" &&
-    !Array.isArray(topLevelSection)
-  ) {
+  if (Object.hasOwn(existingData, sectionName)) {
     return [sectionName];
   }
 
@@ -262,14 +257,7 @@ export async function writeProfileConfig(
       continue;
     }
 
-    const sectionData = asRecord(sectionValue);
-
-    let nextSectionContent = nextContent;
-    for (const [field, fieldValue] of Object.entries(sectionData)) {
-      const path = [...sectionPath, field];
-      nextSectionContent = applyModify(nextSectionContent, path, fieldValue);
-    }
-    nextContent = nextSectionContent;
+    nextContent = applyModify(nextContent, sectionPath, sectionValue);
   }
 
   try {

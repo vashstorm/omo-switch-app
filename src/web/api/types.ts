@@ -65,6 +65,7 @@ export interface GitMasterConfig {
 export interface MiscConfig {
   tmux?: TmuxConfig;
   git_master?: GitMasterConfig;
+  [key: string]: unknown;
 }
 
 export interface EditableConfig {

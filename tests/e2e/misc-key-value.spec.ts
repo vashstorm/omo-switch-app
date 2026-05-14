@@ -43,39 +43,34 @@ test.describe("Misc Key-Value Display", () => {
     });
   });
 
-  test("misc section shows managed field as editable checkbox", async ({ page }) => {
+  test("misc section shows object values as editable JSON", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector("[data-testid='misc-tmux-enabled-checkbox']", { timeout: 5000 });
-    const checkbox = page.getByTestId("misc-tmux-enabled-checkbox");
-    await expect(checkbox).toBeVisible();
-    await expect(checkbox).toHaveAttribute("type", "checkbox");
+    await page.waitForSelector("[data-testid='misc-tmux-value-json']", { timeout: 5000 });
+    const objectEditor = page.getByTestId("misc-tmux-value-json");
+    await expect(objectEditor).toBeVisible();
+    await expect(objectEditor).toHaveValue(/"enabled": true/);
   });
 
-  test("misc section shows non-managed string as read-only", async ({ page }) => {
+  test("object editor includes custom string fields", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector("[data-testid='misc-kv-tmux-prefix_key-readonly']", { timeout: 5000 });
-    const readonlyField = page.getByTestId("misc-kv-tmux-prefix_key-readonly");
-    await expect(readonlyField).toContainText("prefix_key:");
-    await expect(readonlyField).toContainText("Ctrl+B");
+    await page.waitForSelector("[data-testid='misc-tmux-value-json']", { timeout: 5000 });
+    await expect(page.getByTestId("misc-tmux-value-json")).toHaveValue(/"prefix_key": "Ctrl\+B"/);
   });
 
-  test("misc section shows non-managed number as read-only", async ({ page }) => {
+  test("object editor includes custom number fields", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector("[data-testid='misc-kv-git_master-max_depth-readonly']", { timeout: 5000 });
-    const readonlyField = page.getByTestId("misc-kv-git_master-max_depth-readonly");
-    await expect(readonlyField).toContainText("max_depth:");
-    await expect(readonlyField).toContainText("5");
+    await page.waitForSelector("[data-testid='misc-git_master-value-json']", { timeout: 5000 });
+    await expect(page.getByTestId("misc-git_master-value-json")).toHaveValue(/"max_depth": 5/);
   });
 
-  test("misc section shows non-managed object as preformatted JSON", async ({ page }) => {
+  test("object editor includes nested object fields", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector("[data-testid='misc-kv-tmux-nested-readonly']", { timeout: 5000 });
-    const readonlyField = page.getByTestId("misc-kv-tmux-nested-readonly");
-    await expect(readonlyField).toContainText("nested:");
-    await expect(readonlyField.locator("pre")).toContainText('"key": "value"');
+    await page.waitForSelector("[data-testid='misc-tmux-value-json']", { timeout: 5000 });
+    await expect(page.getByTestId("misc-tmux-value-json")).toHaveValue(/"nested"/);
+    await expect(page.getByTestId("misc-tmux-value-json")).toHaveValue(/"key": "value"/);
   });
 
-  test("non-managed fields do not have input elements", async ({ page }) => {
+  test("object values do not expose nested field controls", async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector("[data-testid='misc-section-tmux']", { timeout: 5000 });
     const prefixInput = page.locator('[data-testid="misc-tmux-prefix_key"]');

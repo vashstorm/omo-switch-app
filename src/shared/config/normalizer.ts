@@ -355,37 +355,7 @@ export function extractEditableCategoryFields(
 }
 
 export function extractEditableMiscFields(raw: unknown): Partial<MiscConfig> {
-  if (!raw || typeof raw !== "object") {
-    return {};
-  }
-
-  const rawObj = raw as Record<string, unknown>;
-  const editable: Partial<MiscConfig> = {};
-
-  for (const [sectionName, sectionValue] of Object.entries(rawObj)) {
-    if (sectionName === "$schema") continue;
-
-    const sectionManagedFields =
-      MISC_MANAGED_FIELDS[sectionName as keyof typeof MISC_MANAGED_FIELDS];
-    if (!sectionManagedFields) continue;
-
-    if (sectionValue && typeof sectionValue === "object") {
-      const sectionRaw = sectionValue as Record<string, unknown>;
-      const sectionConfig: Record<string, unknown> = {};
-
-      for (const [key, value] of Object.entries(sectionRaw)) {
-        if (key === "$schema") continue;
-        if (!(key in sectionManagedFields)) continue;
-        sectionConfig[key] = value;
-      }
-
-      if (Object.keys(sectionConfig).length > 0) {
-        (editable as Record<string, unknown>)[sectionName] = sectionConfig;
-      }
-    }
-  }
-
-  return editable;
+  return normalizeMiscConfig(raw);
 }
 
 export function extractReadonlyTail(
@@ -520,11 +490,12 @@ export function mergeEffective(
     }
   }
 
-  if (editable.misc.tmux !== undefined) {
-    effective.misc.tmux = editable.misc.tmux;
-  }
-  if (editable.misc.git_master !== undefined) {
-    effective.misc.git_master = editable.misc.git_master;
+  for (const [sectionName, sectionValue] of Object.entries(editable.misc)) {
+    if (sectionValue === null) {
+      delete (effective.misc as Record<string, unknown>)[sectionName];
+      continue;
+    }
+    (effective.misc as Record<string, unknown>)[sectionName] = sectionValue;
   }
 
   return effective;

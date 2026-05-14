@@ -65,6 +65,7 @@ export function ConfirmDialog({
       </Box>}
       onClose={onCancel}
       maxWidth="xs"
+      testId="confirm-dialog"
       titleTestId="confirm-dialog-title"
       actions={
         <>

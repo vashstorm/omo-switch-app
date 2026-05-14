@@ -1,7 +1,7 @@
 import React, { memo, useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { 
   Card, Box, Typography, Collapse, 
-  ButtonBase, Chip, Paper
+  ButtonBase, Chip, Paper, Checkbox, TextField
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import { ChevronRight, ChevronDown } from "lucide-react";
@@ -11,12 +11,16 @@ import { MONO_FONT } from "../../theme/typography";
 
 interface MiscEditorProps {
   miscData?: Record<string, unknown>;
+  onChange?: (nextMiscData: Record<string, unknown>) => void;
   globalCollapseKey?: number;
   globalExpandKey?: number;
   expandTargetId?: string | null;
 }
 
-function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, expandTargetId }: MiscEditorProps) {
+function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpandKey, expandTargetId }: MiscEditorProps) {
+  const editable = typeof onChange === "function";
+  const [draftValues, setDraftValues] = useState<Record<string, string>>({});
+  const [draftErrors, setDraftErrors] = useState<Record<string, string>>({});
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
     const collapseKey = globalCollapseKey ?? 0;
     const expandKey = globalExpandKey ?? 0;
@@ -97,6 +101,91 @@ function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, exp
     return value as Record<string, unknown>;
   };
 
+  const updateSection = (sectionName: string, nextValue: unknown) => {
+    if (!onChange) return;
+    onChange({
+      ...(miscData ?? {}),
+      [sectionName]: nextValue,
+    });
+  };
+
+  const updateField = (sectionName: string, fieldName: string, nextValue: unknown) => {
+    const sectionData = getSectionData(sectionName) ?? {};
+    updateSection(sectionName, {
+      ...sectionData,
+      [fieldName]: nextValue,
+    });
+  };
+
+  const getDraftValue = (draftKey: string, value: unknown) => {
+    if (Object.hasOwn(draftValues, draftKey)) {
+      return draftValues[draftKey];
+    }
+    if (typeof value === "string") return value;
+    return JSON.stringify(value, null, 2);
+  };
+
+  const setDraftValue = (draftKey: string, value: string) => {
+    setDraftValues((prev) => ({ ...prev, [draftKey]: value }));
+    setDraftErrors((prev) => {
+      if (!prev[draftKey]) return prev;
+      const next = { ...prev };
+      delete next[draftKey];
+      return next;
+    });
+  };
+
+  const clearDraftValue = (draftKey: string) => {
+    setDraftValues((prev) => {
+      if (!Object.hasOwn(prev, draftKey)) return prev;
+      const next = { ...prev };
+      delete next[draftKey];
+      return next;
+    });
+    setDraftErrors((prev) => {
+      if (!Object.hasOwn(prev, draftKey)) return prev;
+      const next = { ...prev };
+      delete next[draftKey];
+      return next;
+    });
+  };
+
+  const commitNumberDraft = (draftKey: string, rawValue: string, commit: (nextValue: number) => void) => {
+    const trimmed = rawValue.trim();
+    if (trimmed === "") {
+      setDraftErrors((prev) => ({ ...prev, [draftKey]: "Number is required" }));
+      return;
+    }
+
+    const nextValue = Number(trimmed);
+    if (!Number.isFinite(nextValue)) {
+      setDraftErrors((prev) => ({ ...prev, [draftKey]: "Invalid number" }));
+      return;
+    }
+
+    commit(nextValue);
+    clearDraftValue(draftKey);
+  };
+
+  const commitJsonDraft = (draftKey: string, rawValue: string, commit: (nextValue: unknown) => void) => {
+    try {
+      const nextValue = JSON.parse(rawValue);
+      commit(nextValue);
+      clearDraftValue(draftKey);
+    } catch {
+      setDraftErrors((prev) => ({ ...prev, [draftKey]: "Invalid JSON" }));
+    }
+  };
+
+  const textFieldSx = {
+    flex: 1,
+    minWidth: 0,
+    "& .MuiInputBase-input": {
+      fontFamily: MONO_FONT,
+      fontSize: "0.8rem",
+    },
+  };
+
   const renderBooleanValue = (value: boolean): React.ReactNode => (
     <Typography
       sx={{
@@ -111,7 +200,121 @@ function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, exp
     </Typography>
   );
 
+  const renderEditableControl = (
+    draftKey: string,
+    testId: string,
+    value: unknown,
+    commit: (nextValue: unknown) => void,
+  ): React.ReactNode => {
+    if (typeof value === "boolean") {
+      return (
+        <Checkbox
+          checked={value}
+          onChange={(event) => commit(event.target.checked)}
+          size="small"
+          inputProps={{ "data-testid": `${testId}-checkbox` } as React.InputHTMLAttributes<HTMLInputElement>}
+          sx={{
+            p: 0.25,
+            color: alpha(miscColor, 0.55),
+            "&.Mui-checked": { color: miscColor },
+          }}
+        />
+      );
+    }
+
+    if (typeof value === "string") {
+      return (
+        <TextField
+          value={value}
+          onChange={(event) => commit(event.target.value)}
+          size="small"
+          fullWidth
+          inputProps={{ "data-testid": testId }}
+          sx={textFieldSx}
+        />
+      );
+    }
+
+    if (typeof value === "number") {
+      const draftValue = getDraftValue(draftKey, value);
+      return (
+        <TextField
+          value={draftValue}
+          onChange={(event) => setDraftValue(draftKey, event.target.value)}
+          onBlur={() => commitNumberDraft(draftKey, draftValue, commit as (nextValue: number) => void)}
+          type="number"
+          size="small"
+          fullWidth
+          error={!!draftErrors[draftKey]}
+          helperText={draftErrors[draftKey] ?? " "}
+          inputProps={{ "data-testid": testId }}
+          sx={textFieldSx}
+        />
+      );
+    }
+
+    const draftValue = getDraftValue(draftKey, value);
+    return (
+      <TextField
+        value={draftValue}
+        onChange={(event) => setDraftValue(draftKey, event.target.value)}
+        onBlur={() => commitJsonDraft(draftKey, draftValue, commit)}
+        size="small"
+        fullWidth
+        multiline
+        minRows={3}
+        error={!!draftErrors[draftKey]}
+        helperText={draftErrors[draftKey] ?? " "}
+        inputProps={{ "data-testid": `${testId}-json` }}
+        sx={textFieldSx}
+      />
+    );
+  };
+
+  const renderEditablePrimitiveValue = (sectionName: string, value: unknown): React.ReactNode => {
+    const isComplexValue = Array.isArray(value) || (typeof value === "object" && value !== null);
+    return (
+      <Box
+        sx={{
+          px: 2,
+          py: isComplexValue ? 1.5 : 1,
+          borderTop: "1px solid",
+          borderColor: alpha(theme.palette.divider, 0.5),
+          display: "flex",
+          alignItems: isComplexValue ? "flex-start" : "center",
+          gap: 2,
+        }}
+        data-testid={`misc-primitive-${sectionName}`}
+      >
+        <Typography
+          sx={{
+            fontFamily: MONO_FONT,
+            fontWeight: 500,
+            color: "text.primary",
+            minWidth: 120,
+            fontSize: "0.75rem",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            pt: isComplexValue ? 0.75 : 0,
+          }}
+        >
+          value:
+        </Typography>
+        {renderEditableControl(
+          `section:${sectionName}`,
+          `misc-${sectionName}-value`,
+          value,
+          (nextValue) => updateSection(sectionName, nextValue),
+        )}
+      </Box>
+    );
+  };
+
   const renderPrimitiveValue = (sectionName: string, value: unknown): React.ReactNode => {
+    if (editable) {
+      return renderEditablePrimitiveValue(sectionName, value);
+    }
+
     const isBool = typeof value === "boolean";
     const isComplexValue = Array.isArray(value) || (typeof value === "object" && value !== null);
 
@@ -165,6 +368,10 @@ function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, exp
   };
 
   const renderArrayValue = (sectionName: string, value: unknown[]): React.ReactNode => {
+    if (editable) {
+      return renderEditablePrimitiveValue(sectionName, value);
+    }
+
     const allPrimitives = value.every(v => typeof v === "string" || typeof v === "number" || typeof v === "boolean" || v === null);
 
     return (
@@ -369,15 +576,64 @@ function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, exp
     );
   };
 
+  const renderEditableField = (sectionName: string, fieldName: string, value: unknown, rowIndex: number): React.ReactNode => {
+    const isComplexValue = Array.isArray(value) || (typeof value === "object" && value !== null);
+
+    return (
+      <Box
+        key={fieldName}
+        sx={{
+          px: 2,
+          py: isComplexValue ? 1.5 : 1,
+          borderTop: rowIndex === 0 ? "none" : `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+          display: "flex",
+          alignItems: isComplexValue ? "flex-start" : "center",
+          gap: 2,
+          bgcolor: rowIndex % 2 === 0 ? "transparent" : alpha(miscColor, 0.02),
+        }}
+        data-testid={`misc-kv-${sectionName}-${fieldName}`}
+      >
+        <Typography
+          component="label"
+          htmlFor={`misc-${sectionName}-${fieldName}`}
+          sx={{
+            fontFamily: MONO_FONT,
+            fontWeight: 500,
+            color: "text.primary",
+            minWidth: 160,
+            fontSize: "0.75rem",
+            letterSpacing: "0.02em",
+            pt: isComplexValue ? 0.75 : 0,
+          }}
+        >
+          {fieldName}:
+        </Typography>
+        {renderEditableControl(
+          `field:${sectionName}:${fieldName}`,
+          `misc-${sectionName}-${fieldName}`,
+          value,
+          (nextValue) => updateField(sectionName, fieldName, nextValue),
+        )}
+      </Box>
+    );
+  };
+
   const renderField = (sectionName: string, fieldName: string, index: number): React.ReactNode => {
     const sectionData = getSectionData(sectionName);
     if (!sectionData) return null;
     const value = sectionData[fieldName];
+    if (editable) {
+      return renderEditableField(sectionName, fieldName, value, index);
+    }
     return renderReadonlyField(sectionName, fieldName, value, index);
   };
 
   const renderSectionContent = (sectionName: string): React.ReactNode => {
     const value = getSectionValue(sectionName);
+
+    if (editable) {
+      return renderEditablePrimitiveValue(sectionName, value);
+    }
 
     if (isPrimitiveValue(value)) {
       return renderPrimitiveValue(sectionName, value);

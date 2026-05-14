@@ -126,11 +126,7 @@ pub struct GitMasterConfig {
     pub git_env_prefix: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct MiscConfig {
-    pub tmux: Option<TmuxConfig>,
-    pub git_master: Option<GitMasterConfig>,
-}
+pub type MiscConfig = HashMap<String, serde_json::Value>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EditableConfig {
@@ -630,21 +626,21 @@ mod tests {
 
     #[test]
     fn test_misc_config_serialization() {
-        let config = MiscConfig {
-            tmux: Some(TmuxConfig {
-                enabled: Some(true),
+        let mut config = MiscConfig::new();
+        config.insert("tmux".to_string(), serde_json::json!({ "enabled": true }));
+        config.insert(
+            "git_master".to_string(),
+            serde_json::json!({
+                "enabled": true,
+                "commit_footer": false
             }),
-            git_master: Some(GitMasterConfig {
-                enabled: Some(true),
-                commit_footer: Some(false),
-                include_co_authored_by: None,
-                git_env_prefix: None,
-            }),
-        };
+        );
+        config.insert("custom_prompt".to_string(), serde_json::json!("value"));
         let json = serde_json::to_string(&config).unwrap();
         let parsed: MiscConfig = serde_json::from_str(&json).unwrap();
-        assert!(parsed.tmux.is_some());
-        assert!(parsed.git_master.is_some());
+        assert!(parsed.contains_key("tmux"));
+        assert!(parsed.contains_key("git_master"));
+        assert_eq!(parsed.get("custom_prompt"), Some(&serde_json::json!("value")));
     }
 
     #[test]

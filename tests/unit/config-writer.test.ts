@@ -64,7 +64,7 @@ describe("config writer", () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  it("only updates managed fields and preserves unmanaged fields", async () => {
+  it("updates managed agent/category fields and writes misc values as whole key-value entries", async () => {
     const initialStat = await fs.stat(configPath);
 
     const payload: EditableConfig = {
@@ -109,7 +109,7 @@ describe("config writer", () => {
     expect(data.categories.backend.custom_setting).toBe("keep");
 
     expect(data.misc.tmux.enabled).toBe(false);
-    expect(data.misc.tmux.custom_misc).toBe("keep");
+    expect(data.misc.tmux.custom_misc).toBeUndefined();
 
     expect(data.top_level_unmanaged.preserve).toBe(true);
   });
@@ -214,9 +214,9 @@ describe("config writer", () => {
     const data = parse(saved) as Record<string, any>;
 
     expect(data.tmux.enabled).toBe(false);
-    expect(data.tmux.custom_misc).toBe("keep");
+    expect(data.tmux.custom_misc).toBeUndefined();
     expect(data.git_master.enabled).toBe(true);
-    expect(data.git_master.branch).toBe("master");
+    expect(data.git_master.branch).toBeUndefined();
     expect(data.misc).toBeUndefined();
     expect(data.top_level_unmanaged.preserve).toBe(true);
   });
@@ -259,7 +259,7 @@ describe("config writer", () => {
     const data = parse(saved) as Record<string, any>;
 
     expect(data.misc.tmux.enabled).toBe(false);
-    expect(data.misc.tmux.custom_misc).toBe("keep");
+    expect(data.misc.tmux.custom_misc).toBeUndefined();
     expect(data.misc.git_master.enabled).toBe(true);
     expect(data.tmux).toBeUndefined();
     expect(data.git_master).toBeUndefined();

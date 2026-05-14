@@ -78,7 +78,7 @@ export const EditableCategoryPayloadSchema = z.object({
 export const EditableMiscPayloadSchema = z.object({
   tmux: TmuxConfigSchema.optional(),
   git_master: GitMasterConfigSchema.optional(),
-});
+}).passthrough();
 
 export const EditablePayloadSchema = z.object({
   agents: z.record(z.string(), EditableAgentPayloadSchema),

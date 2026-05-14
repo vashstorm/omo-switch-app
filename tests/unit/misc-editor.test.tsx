@@ -1,7 +1,7 @@
 import React from "react";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { describe, expect, test, afterEach } from "vitest";
+import { describe, expect, test, afterEach, vi } from "vitest";
 import { MiscEditor } from "../../src/web/components/misc/MiscEditor";
 
 describe("MiscEditor", () => {
@@ -182,5 +182,62 @@ describe("MiscEditor", () => {
     expect(screen.getByTestId("misc-primitive-primitive_number")).toBeInTheDocument();
     expect(screen.getByTestId("misc-primitive-primitive_string")).toBeInTheDocument();
     expect(screen.getByTestId("misc-kv-tmux-enabled-readonly")).toBeInTheDocument();
+  });
+
+  test("edits string values as key-value entries", () => {
+    const onChange = vi.fn();
+
+    render(<MiscEditor miscData={{ custom_prompt: "hello" }} onChange={onChange} />);
+
+    fireEvent.change(screen.getByTestId("misc-custom_prompt-value"), {
+      target: { value: "updated" },
+    });
+
+    expect(onChange).toHaveBeenCalledWith({ custom_prompt: "updated" });
+  });
+
+  test("edits boolean values as key-value entries", () => {
+    const onChange = vi.fn();
+
+    render(<MiscEditor miscData={{ feature_enabled: true }} onChange={onChange} />);
+
+    fireEvent.click(screen.getByTestId("misc-feature_enabled-value-checkbox"));
+
+    expect(onChange).toHaveBeenCalledWith({ feature_enabled: false });
+  });
+
+  test("edits object values as JSON key-value entries", () => {
+    const onChange = vi.fn();
+
+    render(
+      <MiscEditor
+        miscData={{ tmux: { enabled: true, prefix_key: "Ctrl+B" } }}
+        onChange={onChange}
+      />,
+    );
+
+    const input = screen.getByTestId("misc-tmux-value-json");
+    fireEvent.change(input, {
+      target: { value: '{ "enabled": false, "prefix_key": "Ctrl+A" }' },
+    });
+    fireEvent.blur(input);
+
+    expect(onChange).toHaveBeenCalledWith({
+      tmux: { enabled: false, prefix_key: "Ctrl+A" },
+    });
+  });
+
+  test("edits array values as JSON key-value entries", () => {
+    const onChange = vi.fn();
+
+    render(<MiscEditor miscData={{ tools: ["one"] }} onChange={onChange} />);
+
+    const input = screen.getByTestId("misc-tools-value-json");
+    fireEvent.change(input, {
+      target: { value: '["one", "two"]' },
+    });
+    fireEvent.blur(input);
+
+    expect(onChange).toHaveBeenCalledWith({ tools: ["one", "two"] });
   });
 });

@@ -47,25 +47,28 @@ test.describe("Save Flow", () => {
 
     await expect(page.getByTestId("misc-section-tmux")).toBeVisible();
 
-    const tmuxCheckbox = page.getByTestId("misc-tmux-enabled-checkbox");
-    await expect(tmuxCheckbox).not.toBeChecked();
+    const tmuxEditor = page.getByTestId("misc-tmux-value-json");
+    await expect(tmuxEditor).toHaveValue(/"enabled": false/);
 
-    await tmuxCheckbox.check();
+    await tmuxEditor.fill('{ "enabled": true }');
+    await tmuxEditor.blur();
     await expect(page.getByTestId("unsaved-warning")).toBeVisible();
     await page.getByTestId("reset-button").click();
     await expect(page.getByTestId("unsaved-warning")).not.toBeVisible();
-    await expect(tmuxCheckbox).not.toBeChecked();
+    await expect(tmuxEditor).toHaveValue(/"enabled": false/);
 
-    await tmuxCheckbox.check();
+    await tmuxEditor.fill('{ "enabled": true }');
+    await tmuxEditor.blur();
     await expect(page.getByTestId("unsaved-warning")).toBeVisible();
     await page.getByTestId("save-button").click();
     await expect(page.getByTestId("status-success")).toHaveText("Saved successfully", { timeout: 10000 });
     await expect(page.getByTestId("unsaved-warning")).not.toBeVisible();
 
     mockPutStatus = 409;
-    mockPutResponse = { success: false, conflict: true, error: "File modified externally" };
+    mockPutResponse = { success: false, code: "CONFLICT", message: "File modified externally" };
 
-    await tmuxCheckbox.uncheck();
+    await tmuxEditor.fill('{ "enabled": false }');
+    await tmuxEditor.blur();
     await expect(page.getByTestId("unsaved-warning")).toBeVisible();
     await page.getByTestId("save-button").click();
 
