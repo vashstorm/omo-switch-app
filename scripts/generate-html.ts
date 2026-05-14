@@ -5,9 +5,8 @@ const distWebDir = resolve(import.meta.dirname, "../dist/web");
 mkdirSync(distWebDir, { recursive: true });
 
 const fontPreloads = [
-  "/fonts/ibm-plex-mono-400.woff2",
-  "/fonts/ibm-plex-mono-500.woff2",
-  "/fonts/ibm-plex-mono-700.woff2",
+  "/fonts/geist-sans-variable.woff2",
+  "/fonts/geist-mono-variable.woff2",
 ]
   .map((href) => `    <link rel="preload" href="${href}" as="font" type="font/woff2" crossorigin="anonymous" />`)
   .join("\n");

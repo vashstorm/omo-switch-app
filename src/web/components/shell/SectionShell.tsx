@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import { TRANSITIONS } from "../../theme/motionTokens";
-import { radii, lightTokens, darkTokens } from "../../theme/designTokens";
+import { lightTokens, darkTokens } from "../../theme/designTokens";
 
 interface SectionEmptyStateConfig {
   icon: ReactNode;
@@ -54,17 +54,15 @@ export function SectionShell({
       id={id}
       data-testid={testId}
       sx={{
-        borderRadius: 3,
+        borderRadius: `${tokens.radii.section}px`,
         overflow: "hidden",
-        boxShadow: collapsed
-          ? "none"
-          : isDark
-            ? "0 2px 12px rgba(0, 0, 0, 0.24)"
-            : "0 2px 12px rgba(0, 0, 0, 0.06)",
+        bgcolor: tokens.colors.neutral.surface,
+        borderColor: tokens.colors.neutral.divider,
+        boxShadow: "none",
         transition: TRANSITIONS.collapse,
       }}
     >
-      <Box sx={{ p: 0.5, pb: collapsed ? 0.5 : 0 }} data-section-header="">
+      <Box sx={{ p: 0.75, pb: collapsed ? 0.75 : 0 }} data-section-header="">
         <ButtonBase
           onClick={onToggle}
           data-testid={`toggle-section-${id.replace("section-", "")}`}
@@ -73,34 +71,34 @@ export function SectionShell({
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: 2,
+            gap: 1.5,
             justifyContent: "flex-start",
             textTransform: "none",
             color: "text.primary",
             width: "100%",
-            py: 1.25,
-            px: 2,
-            borderRadius: 2,
-            bgcolor: collapsed ? "transparent" : alpha(sectionColor, 0.02),
+            py: 1.5,
+            px: 2.25,
+            borderRadius: `${tokens.radii.card}px`,
+            bgcolor: collapsed ? "transparent" : alpha(sectionColor, isDark ? 0.1 : 0.07),
             transition: TRANSITIONS.control,
             "&:hover": {
-              bgcolor: alpha(sectionColor, 0.04),
+              bgcolor: alpha(sectionColor, isDark ? 0.14 : 0.1),
             },
           }}
         >
-<Box
+          <Box
             sx={{
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-               width: 28,
-               height: 28,
-               borderRadius: 2,
-               bgcolor: collapsed ? alpha(sectionColor, 0.08) : tokens.colors.brand.main,
-               color: collapsed ? sectionColor : "common.white",
-               transition: TRANSITIONS.control,
-             }}
-           >
+              width: 30,
+              height: 30,
+              borderRadius: `${tokens.radii.control}px`,
+              bgcolor: collapsed ? alpha(sectionColor, 0.12) : sectionColor,
+              color: collapsed ? sectionColor : "common.white",
+              transition: TRANSITIONS.control,
+            }}
+          >
             {collapsed ? (
               <ChevronRight style={{ width: 18, height: 18 }} />
             ) : (
@@ -111,10 +109,10 @@ export function SectionShell({
             component="h2"
             variant="h6"
             sx={{
-              fontWeight: 700,
-              letterSpacing: "-0.015em",
-              fontSize: "1rem",
-              color: collapsed ? "text.primary" : sectionColor,
+              fontWeight: 500,
+              letterSpacing: 0,
+              fontSize: "1.05rem",
+              color: "text.primary",
               flex: 1,
               textAlign: "left",
             }}
@@ -130,11 +128,11 @@ export function SectionShell({
                 minWidth: 22,
                 height: 22,
                 px: 0.75,
-                borderRadius: 1.5,
-                bgcolor: alpha(sectionColor, 0.1),
+                borderRadius: 999,
+                bgcolor: alpha(sectionColor, isDark ? 0.16 : 0.12),
                 color: sectionColor,
                 fontSize: "0.6875rem",
-                fontWeight: 600,
+                fontWeight: 500,
               }}
             >
               {count}
@@ -143,7 +141,7 @@ export function SectionShell({
         </ButtonBase>
       </Box>
       {!collapsed && (
-        <CardContent id={`${id}-content`} data-testid={`${testId}-content`} sx={{ p: 2, pt: 0.5, "&:last-child": { pb: 2 } }}>
+        <CardContent id={`${id}-content`} data-testid={`${testId}-content`} sx={{ p: 2.25, pt: 1.25, "&:last-child": { pb: 2.25 } }}>
           {children}
           {emptyState && (
             <Box
@@ -154,9 +152,10 @@ export function SectionShell({
                 gap: 2.5,
                 py: 5,
                 px: 3,
-                bgcolor: tokens.colors.neutral.elevatedSurface,
-                borderRadius: 3,
+                bgcolor: isDark ? tokens.colors.neutral.elevatedSurface : tokens.colors.sidebar.trayTint,
+                borderRadius: `${tokens.radii.card}px`,
                 mt: 2,
+                border: `1px solid ${tokens.colors.neutral.divider}`,
               }}
             >
               <Box
@@ -166,7 +165,7 @@ export function SectionShell({
                   justifyContent: "center",
                   width: 52,
                   height: 52,
-                  borderRadius: 3,
+                  borderRadius: `${tokens.radii.card}px`,
                   bgcolor: emptyState.iconBg ?? alpha(sectionColor, 0.08),
                   color: emptyState.iconColor ?? sectionColor,
                 }}
@@ -177,7 +176,7 @@ export function SectionShell({
               <Typography
                 sx={{
                   fontSize: "1rem",
-                  fontWeight: 600,
+                  fontWeight: 500,
                   color: "text.primary",
                   textAlign: "center",
                 }}
@@ -204,8 +203,8 @@ export function SectionShell({
                   sx={{
                     width: "100%",
                     maxWidth: 200,
-                    borderRadius: 2,
-                    fontWeight: 600,
+                    borderRadius: `${tokens.radii.control}px`,
+                    fontWeight: 500,
                     textTransform: "none",
                     bgcolor: sectionColor,
                     "&:hover": { bgcolor: alpha(sectionColor, 0.85) },

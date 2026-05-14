@@ -16,7 +16,8 @@ describe("static font assets", () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(html).toContain('/fonts/poppins-400.woff2');
+    expect(html).toContain('/fonts/geist-sans-variable.woff2');
+    expect(html).toContain('/fonts/geist-mono-variable.woff2');
     expect(html).toContain('rel="preload"');
     expect(html).toContain('type="font/woff2"');
   });
@@ -25,7 +26,7 @@ describe("static font assets", () => {
     const app = new Hono();
     registerStaticRoute(app, { staticDir: "/nonexistent-static-dir" });
 
-    const response = await app.fetch(new Request("http://localhost/fonts/poppins-400.woff2"));
+    const response = await app.fetch(new Request("http://localhost/fonts/geist-sans-variable.woff2"));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("font/woff2");

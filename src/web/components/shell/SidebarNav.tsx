@@ -6,6 +6,7 @@ import {
 import { useTheme, alpha } from "@mui/material/styles";
 import { DURATIONS, EASING } from "../../theme/motionTokens";
 import { lightTokens, darkTokens } from "../../theme/designTokens";
+import { MONO_FONT } from "../../theme/typography";
 
 interface SidebarNavProps {
   agentIds: string[];
@@ -125,15 +126,15 @@ export function SidebarNav({
         alignItems: "center",
         justifyContent: "space-between",
         px: 1.5,
-        py: 0.625,
-        borderRadius: 1.5,
+        py: 0.75,
+        borderRadius: `${tokens.radii.control}px`,
         cursor: onClick ? "pointer" : "default",
         transition: navItemTransition,
-        bgcolor: isActive ? alpha(color, 0.08) : "transparent",
-        boxShadow: isActive ? `inset 3px 0 0 ${color}` : "none",
+        bgcolor: isActive ? alpha(color, isDark ? 0.16 : 0.1) : "transparent",
+        border: `1px solid ${isActive ? alpha(color, 0.28) : "transparent"}`,
         "&:hover": onClick
           ? {
-              bgcolor: alpha(color, 0.04),
+              bgcolor: alpha(color, isDark ? 0.12 : 0.07),
             }
           : {},
         "&:focus-visible": {
@@ -147,7 +148,7 @@ export function SidebarNav({
         <Typography
           sx={{
             fontSize: "0.6875rem",
-            fontWeight: 600,
+            fontWeight: 500,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
             color: "text.secondary",
@@ -162,9 +163,9 @@ export function SidebarNav({
             sx={{
               height: 18,
               fontSize: "0.625rem",
-              bgcolor: alpha(color, 0.12),
+              bgcolor: alpha(color, isDark ? 0.18 : 0.12),
               color: color,
-              fontWeight: 600,
+              fontWeight: 500,
               minWidth: 18,
             }}
           />
@@ -222,17 +223,17 @@ export function SidebarNav({
         sx={{
           justifyContent: "flex-start",
           px: 1.5,
-          py: 0.625,
+          py: 0.7,
           fontSize: "0.8125rem",
           textTransform: "none",
           color: isActive ? sectionColor : "text.primary",
-          bgcolor: isActive ? alpha(sectionColor, 0.08) : "transparent",
-          borderRadius: 2,
+          bgcolor: isActive ? alpha(sectionColor, isDark ? 0.15 : 0.09) : "transparent",
+          borderRadius: `${tokens.radii.control}px`,
           transition: navItemTransition,
           position: "relative",
-          boxShadow: isActive ? `inset 3px 0 0 ${sectionColor}` : "none",
+          border: `1px solid ${isActive ? alpha(sectionColor, 0.28) : "transparent"}`,
           "&:hover": {
-            bgcolor: alpha(sectionColor, 0.04),
+            bgcolor: alpha(sectionColor, isDark ? 0.12 : 0.07),
             color: sectionColor,
           },
           "&:focus-visible": {
@@ -245,7 +246,7 @@ export function SidebarNav({
           <Typography
             component="span"
             sx={{
-              fontWeight: isActive ? 600 : 400,
+              fontWeight: isActive ? 500 : 400,
               fontSize: "0.8125rem",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -265,8 +266,8 @@ export function SidebarNav({
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
-                letterSpacing: "0.03em",
-                fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
+                letterSpacing: 0,
+                fontFamily: MONO_FONT,
                 flexShrink: 1,
                 minWidth: 0,
               }}
@@ -284,10 +285,11 @@ export function SidebarNav({
       sx={{
         display: "flex",
         flexDirection: "column",
-        gap: 0.125,
-        p: 0.625,
-        borderRadius: 2,
+        gap: 0.25,
+        p: 0.75,
+        borderRadius: `${tokens.radii.card}px`,
         bgcolor: tokens.colors.sidebar.trayTint,
+        border: `1px solid ${tokens.colors.neutral.divider}`,
       }}
     >
       {children}
@@ -325,12 +327,12 @@ export function SidebarNav({
         sx={{
           flex: 1,
           overflowY: "auto",
-          px: 1.25,
-          py: 1.25,
+          px: 1.5,
+          py: 1.5,
           pb: 2,
           display: "flex",
           flexDirection: "column",
-          gap: 1.25,
+          gap: 1.5,
           ...scrollbarStyles,
         }}
       >

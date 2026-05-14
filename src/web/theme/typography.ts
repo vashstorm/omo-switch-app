@@ -1,6 +1,6 @@
-export const DISPLAY_FONT = `-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif`;
-export const BODY_FONT = `-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif`;
-export const MONO_FONT = `'IBM Plex Mono', 'Fira Code', 'SFMono-Regular', Consolas, monospace`;
+export const DISPLAY_FONT = `'Geist Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+export const BODY_FONT = `'Geist Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+export const MONO_FONT = `'Geist Mono', 'SFMono-Regular', Consolas, monospace`;
 
 export const FONT_WEIGHTS = {
   light: 300,
@@ -18,19 +18,19 @@ type FontSizeVariant = {
 };
 
 const headingSizes: Record<string, FontSizeVariant> = {
-  h1: { fontSize: '2rem', lineHeight: 1.07, letterSpacing: '-0.028em' },
-  h2: { fontSize: '1.5rem', lineHeight: 1.10, letterSpacing: '-0.02em' },
-  h3: { fontSize: '1.25rem', lineHeight: 1.14, letterSpacing: '-0.015em' },
-  h4: { fontSize: '1.125rem', lineHeight: 1.19, letterSpacing: '-0.01em' },
-  h5: { fontSize: '1rem', lineHeight: 1.29, letterSpacing: '-0.022em' },
-  h6: { fontSize: '0.875rem', lineHeight: 1.29, letterSpacing: '-0.01em' },
+  h1: { fontSize: '2rem', lineHeight: 1.08, letterSpacing: '0' },
+  h2: { fontSize: '1.5rem', lineHeight: 1.12, letterSpacing: '0' },
+  h3: { fontSize: '1.25rem', lineHeight: 1.18, letterSpacing: '0' },
+  h4: { fontSize: '1.125rem', lineHeight: 1.24, letterSpacing: '0' },
+  h5: { fontSize: '1rem', lineHeight: 1.3, letterSpacing: '0' },
+  h6: { fontSize: '0.875rem', lineHeight: 1.35, letterSpacing: '0' },
 };
 
 const bodySizes: Record<string, FontSizeVariant> = {
-  body1: { fontSize: '1.0625rem', lineHeight: 1.47, letterSpacing: '-0.022em' },
-  body2: { fontSize: '0.875rem', lineHeight: 1.43, letterSpacing: '-0.022em' },
-  caption: { fontSize: '0.75rem', lineHeight: 1.33, letterSpacing: '-0.012em' },
-  overline: { fontSize: '0.6875rem', lineHeight: 1.3, letterSpacing: '0.08em', textTransform: 'uppercase' },
+  body1: { fontSize: '1rem', lineHeight: 1.55, letterSpacing: '0' },
+  body2: { fontSize: '0.875rem', lineHeight: 1.55, letterSpacing: '0' },
+  caption: { fontSize: '0.8125rem', lineHeight: 1.4, letterSpacing: '0' },
+  overline: { fontSize: '0.75rem', lineHeight: 1.4, letterSpacing: '0.09em', textTransform: 'uppercase' },
 };
 
 function applyFont(
@@ -52,8 +52,8 @@ function applyFont(
 }
 
 export function createTypographyConfig(mode: 'light' | 'dark') {
-  const textPrimary = mode === 'light' ? '#1d1d1f' : '#f5f5f7';
-  const textSecondary = mode === 'light' ? 'rgba(0, 0, 0, 0.48)' : 'rgba(255, 255, 255, 0.55)';
+  const textPrimary = mode === 'light' ? '#141413' : '#faf9f5';
+  const textSecondary = mode === 'light' ? '#6c6a64' : '#a09d96';
 
   const headings = applyFont(DISPLAY_FONT, headingSizes);
   const bodies = applyFont(BODY_FONT, bodySizes);
@@ -61,12 +61,12 @@ export function createTypographyConfig(mode: 'light' | 'dark') {
   return {
     fontFamily: BODY_FONT,
     fontSize: 14,
-    h1: { ...headings.h1, color: textPrimary },
-    h2: { ...headings.h2, color: textPrimary },
-    h3: { ...headings.h3, color: textPrimary },
-    h4: { ...headings.h4, color: textPrimary },
-    h5: { ...headings.h5, color: textPrimary },
-    h6: { ...headings.h6, color: textPrimary },
+    h1: { ...headings.h1, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
+    h2: { ...headings.h2, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
+    h3: { ...headings.h3, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
+    h4: { ...headings.h4, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
+    h5: { ...headings.h5, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
+    h6: { ...headings.h6, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
     subtitle1: {
       fontFamily: BODY_FONT,
       fontSize: '0.9375rem',

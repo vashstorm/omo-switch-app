@@ -44,7 +44,7 @@ export function ProfileSelector({ profiles, selectedId, onChange, disabled }: Pr
       </Typography>
       <FormControl
         size="small"
-        sx={{ width: 180 }}
+        sx={{ width: { xs: 132, sm: 180 } }}
         disabled={disabled || profiles.length === 0}
       >
         <Select

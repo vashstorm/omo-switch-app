@@ -180,23 +180,22 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
       data-testid={`category-card-${id}`}
       id={`category-${id}`}
       sx={{
-        borderRadius: 3,
+        borderRadius: `${dTokens.radii.card}px`,
         overflow: "hidden",
         transition: TRANSITIONS.control,
-        boxShadow: collapsed
-          ? "none"
-          : "0 2px 12px rgba(0, 0, 0, 0.06)",
+        bgcolor: dTokens.colors.neutral.elevatedSurface,
+        borderColor: collapsed ? dTokens.colors.neutral.divider : alpha(categoryColor, 0.24),
+        boxShadow: "none",
         "&:hover": {
-          boxShadow: collapsed
-            ? "0 2px 8px rgba(0, 0, 0, 0.04)"
-            : "0 4px 16px rgba(0, 0, 0, 0.08)",
+          borderColor: alpha(categoryColor, 0.42),
+          bgcolor: isDark ? dTokens.colors.neutral.elevatedSurface : "#f3ede4",
         }
       }}
     >
       <Box
         sx={{
-          height: 2,
-          bgcolor: collapsed ? "transparent" : categoryColor,
+          height: 3,
+          bgcolor: collapsed ? "transparent" : alpha(categoryColor, 0.85),
           transition: TRANSITIONS.control,
           opacity: 0.85,
         }}
@@ -206,9 +205,9 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        py: 0.5,
-        px: 1.5,
-        bgcolor: collapsed ? "transparent" : alpha(categoryColor, 0.02),
+        py: 0.75,
+        px: 1.25,
+        bgcolor: collapsed ? "transparent" : alpha(categoryColor, isDark ? 0.1 : 0.06),
         borderBottom: "1px solid",
         borderColor: collapsed ? "transparent" : alpha(theme.palette.divider, 0.4),
         transition: TRANSITIONS.control,
@@ -223,12 +222,12 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
             display: "flex",
             alignItems: "center",
             gap: 1.5,
-            borderRadius: 1.5,
+            borderRadius: `${dTokens.radii.control}px`,
             padding: "6px 8px",
             flex: 1,
             justifyContent: "flex-start",
             "&:hover": {
-              bgcolor: alpha(categoryColor, 0.06),
+              bgcolor: alpha(categoryColor, isDark ? 0.14 : 0.09),
             }
           }}
         >
@@ -239,8 +238,8 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
               justifyContent: "center",
               width: 24,
               height: 24,
-              borderRadius: 1.5,
-              bgcolor: collapsed ? alpha(categoryColor, 0.08) : categoryColor,
+              borderRadius: `${dTokens.radii.control - 2}px`,
+              bgcolor: collapsed ? alpha(categoryColor, 0.12) : categoryColor,
               color: collapsed ? "text.secondary" : dTokens.colors.neutral.surface,
               transition: `all ${DURATIONS.NORMAL}ms ${EASING.EASE_OUT}`,
             }}
@@ -258,7 +257,7 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
               fontFamily: MONO_FONT,
               color: collapsed ? "text.primary" : categoryColor,
               fontSize: "0.8125rem",
-              letterSpacing: "-0.01em",
+              letterSpacing: 0,
               transition: TRANSITIONS.control,
             }}
           >
@@ -405,7 +404,7 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       minHeight: "40px",
-                      bgcolor: alpha(theme.palette.background.default, 0.4)
+                      bgcolor: dTokens.colors.neutral.surface,
                     },
                     "& .MuiInputBase-inputMultiline": {
                       padding: 0,
@@ -443,7 +442,7 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
                   sx={{ 
                     "& .MuiOutlinedInput-root": { 
                       minHeight: "40px",
-                      bgcolor: alpha(theme.palette.background.default, 0.4)
+                      bgcolor: dTokens.colors.neutral.surface,
                     },
                     "& .MuiInputBase-inputMultiline": {
                       padding: 0,

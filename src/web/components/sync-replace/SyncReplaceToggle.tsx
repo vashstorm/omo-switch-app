@@ -49,12 +49,13 @@ export function SyncReplaceToggle({ enabled, loading, onChange }: SyncReplaceTog
       label="Sync Replace"
       sx={{
         "& .MuiFormControlLabel-label": {
+          display: { xs: "none", sm: "inline" },
           fontSize: "0.8125rem",
           fontWeight: 500,
           color: "text.secondary",
         },
         ml: 0,
-        mr: 1,
+        mr: { xs: 0, sm: 1 },
       }}
     />
   );

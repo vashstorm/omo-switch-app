@@ -25,14 +25,13 @@ function buildShadows(
   darkColor: string,
   isDark: boolean
 ): string[] {
-  // Apple's minimal shadow approach: single soft shadow
   const base = isDark ? darkColor : lightColor;
   return [
     "none",
-    `0 2px 8px ${base}`, // subtle
-    `0 3px 10px ${base}`, // medium - Apple's card shadow
-    `3px 5px 30px ${base}`, // elevated - Apple's signature shadow
-    ...Array(20).fill(`3px 5px 30px ${base}`), // fill rest with elevated
+    `0 1px 3px ${base}`,
+    `0 2px 8px ${base}`,
+    `0 8px 24px ${base}`,
+    ...Array(20).fill(`0 8px 24px ${base}`),
   ];
 }
 
@@ -45,9 +44,7 @@ function buildComponentOverrides(
 ) {
   const c = tokens.colors;
   const r = tokens.radii;
-  const appleShadowLight = "rgba(0, 0, 0, 0.08)";
-  const appleShadowDark = "rgba(0, 0, 0, 0.2)";
-  const cardShadow = isDark ? `0 3px 10px ${appleShadowDark}` : `0 3px 10px ${appleShadowLight}`;
+  const subtleShadow = isDark ? "rgba(0, 0, 0, 0.28)" : "rgba(20, 20, 19, 0.08)";
   const scrollbarThumb = c.sidebar.scrollbarThumb;
   const scrollbarTrack = "transparent";
   const reduced = createReducedMotionTransitions();
@@ -57,64 +54,62 @@ function buildComponentOverrides(
   return {
     MuiCssBaseline: {
       styleOverrides: () => ({
-        "@global": {
-          "*": {
-            boxSizing: "border-box",
-            margin: 0,
-            padding: 0,
-          },
-          "html, body, #root": {
-            height: "100%",
-          },
-          body: {
-            fontFamily: BODY_FONT,
-            fontSize: 14,
-            backgroundColor: c.neutral.background,
-            color: c.neutral.textPrimary,
-            lineHeight: 1.5,
-            WebkitFontSmoothing: "antialiased",
-            MozOsxFontSmoothing: "grayscale",
-            transition: defaultTransition,
-          },
-          "html *": {
-            transition: `background-color ${TRANSITIONS.control.split(",")[0].match(/\d+ms/)?.[0] ?? "180ms"} ${EASING.EASE_OUT}, border-color ${TRANSITIONS.control.split(",")[1]?.match(/\d+ms/)?.[0] ?? "180ms"} ${EASING.EASE_OUT}`,
-          },
-          "button, input, select, textarea, a": {
-            fontFamily: "inherit",
-            transition: transitionControl,
-          },
-          "button, a": {
-            cursor: "pointer",
-          },
-          a: {
-            color: "inherit",
-            textDecoration: "none",
-          },
-          ":focus-visible": {
-            outline: `2px solid ${focusRingColor}`,
-            outlineOffset: "2px",
-          },
-          "::-webkit-scrollbar": {
-            width: "6px",
-            height: "6px",
-          },
-          "::-webkit-scrollbar-track": {
-            background: scrollbarTrack,
-          },
-          "::-webkit-scrollbar-thumb": {
-            background: scrollbarThumb,
-            borderRadius: "3px",
-          },
-          "::-webkit-scrollbar-thumb:hover": {
-            background: isDark ? c.neutral.textPrimary : c.brand.main,
-          },
-          "@media (prefers-reduced-motion: reduce)": {
-            "*, *::before, *::after": {
-              animationDuration: "0.01ms !important",
-              animationIterationCount: "1 !important",
-              transitionDuration: "0.01ms !important",
-              scrollBehavior: "auto !important",
-            },
+        "*": {
+          boxSizing: "border-box",
+          margin: 0,
+          padding: 0,
+        },
+        "html, body, #root": {
+          height: "100%",
+        },
+        body: {
+          fontFamily: BODY_FONT,
+          fontSize: 14,
+          backgroundColor: c.neutral.background,
+          color: c.neutral.textPrimary,
+          lineHeight: 1.5,
+          WebkitFontSmoothing: "antialiased",
+          MozOsxFontSmoothing: "grayscale",
+          transition: defaultTransition,
+        },
+        "html *": {
+          transition: `background-color ${TRANSITIONS.control.split(",")[0].match(/\d+ms/)?.[0] ?? "180ms"} ${EASING.EASE_OUT}, border-color ${TRANSITIONS.control.split(",")[1]?.match(/\d+ms/)?.[0] ?? "180ms"} ${EASING.EASE_OUT}`,
+        },
+        "button, input, select, textarea, a": {
+          fontFamily: "inherit",
+          transition: transitionControl,
+        },
+        "button, a": {
+          cursor: "pointer",
+        },
+        a: {
+          color: "inherit",
+          textDecoration: "none",
+        },
+        ":focus-visible": {
+          outline: `2px solid ${focusRingColor}`,
+          outlineOffset: "2px",
+        },
+        "::-webkit-scrollbar": {
+          width: "6px",
+          height: "6px",
+        },
+        "::-webkit-scrollbar-track": {
+          background: scrollbarTrack,
+        },
+        "::-webkit-scrollbar-thumb": {
+          background: scrollbarThumb,
+          borderRadius: "3px",
+        },
+        "::-webkit-scrollbar-thumb:hover": {
+          background: c.brand.main,
+        },
+        "@media (prefers-reduced-motion: reduce)": {
+          "*, *::before, *::after": {
+            animationDuration: "0.01ms !important",
+            animationIterationCount: "1 !important",
+            transitionDuration: "0.01ms !important",
+            scrollBehavior: "auto !important",
           },
         },
       }),
@@ -124,7 +119,26 @@ function buildComponentOverrides(
         root: {
           borderRadius: r.control,
           fontWeight: 500,
+          letterSpacing: 0,
+          minHeight: 36,
+          textTransform: "none",
           transition: transitionControl,
+        },
+        containedPrimary: {
+          backgroundColor: c.brand.main,
+          color: "#fff",
+          "&:hover": {
+            backgroundColor: c.brand.hover,
+          },
+        },
+        outlined: {
+          borderColor: c.neutral.divider,
+          color: c.neutral.textPrimary,
+          backgroundColor: c.neutral.surface,
+          "&:hover": {
+            borderColor: c.brand.main,
+            backgroundColor: c.brand.soft,
+          },
         },
       },
       defaultProps: {
@@ -135,7 +149,10 @@ function buildComponentOverrides(
       styleOverrides: {
         root: {
           borderRadius: r.card,
-          boxShadow: cardShadow,
+          boxShadow: "none",
+          backgroundImage: "none",
+          border: `1px solid ${c.neutral.divider}`,
+          backgroundColor: c.neutral.elevatedSurface,
         },
       },
     },
@@ -143,6 +160,7 @@ function buildComponentOverrides(
       styleOverrides: {
         root: {
           borderRadius: r.section,
+          backgroundColor: c.neutral.surface,
           backgroundImage: "none",
           transition: transitionControl,
         },
@@ -157,7 +175,18 @@ function buildComponentOverrides(
         root: {
           "& .MuiOutlinedInput-root": {
             borderRadius: r.control,
+            backgroundColor: c.neutral.surface,
             transition: transitionControl,
+            "& fieldset": {
+              borderColor: c.neutral.divider,
+            },
+            "&:hover fieldset": {
+              borderColor: c.brand.main,
+            },
+            "&.Mui-focused fieldset": {
+              borderColor: c.brand.main,
+              boxShadow: `0 0 0 3px ${c.brand.soft}`,
+            },
           },
           "& .MuiOutlinedInput-input": {
             padding: "10px 14px",
@@ -198,7 +227,8 @@ function buildComponentOverrides(
         MenuProps: {
           PaperProps: {
             sx: {
-              borderRadius: `${r.control - 4}px`,
+              borderRadius: `${r.control}px`,
+              border: `1px solid ${c.neutral.divider}`,
             },
           },
         },
@@ -208,9 +238,12 @@ function buildComponentOverrides(
       styleOverrides: {
         root: {
           fontSize: "0.875rem",
-          borderRadius: `${r.control - 6}px`,
+          borderRadius: `${r.control - 2}px`,
           margin: "2px 8px",
           transition: transitionControl,
+          "&.Mui-selected": {
+            backgroundColor: c.brand.soft,
+          },
         },
       },
     },
@@ -224,9 +257,10 @@ function buildComponentOverrides(
         },
         paper: {
           borderRadius: r.dialog,
+          border: `1px solid ${c.neutral.divider}`,
           boxShadow: isDark
-            ? "0 24px 48px rgba(0, 0, 0, 0.4)"
-            : "0 24px 48px rgba(0, 0, 0, 0.22)",
+            ? "0 24px 48px rgba(0, 0, 0, 0.38)"
+            : "0 24px 48px rgba(20, 20, 19, 0.16)",
         },
       },
     },
@@ -234,7 +268,7 @@ function buildComponentOverrides(
       styleOverrides: {
         paper: {
           borderRadius: 0,
-          boxShadow: isDark ? `0 2px 8px ${appleShadowDark}` : `0 2px 8px ${appleShadowLight}`,
+          boxShadow: `0 8px 24px ${subtleShadow}`,
         },
       },
     },
@@ -244,6 +278,7 @@ function buildComponentOverrides(
           borderRadius: r.chip,
           fontSize: "0.75rem",
           fontWeight: 500,
+          letterSpacing: 0,
           transition: transitionControl,
         },
         sizeSmall: {
@@ -265,7 +300,7 @@ function buildComponentOverrides(
           fontSize: "0.75rem",
           fontWeight: 500,
           textTransform: "uppercase",
-          letterSpacing: "0.05em",
+          letterSpacing: "0.08em",
           color: c.neutral.textSecondary,
         },
       },
@@ -304,6 +339,7 @@ function buildSectionColors(colors: ColorTokens) {
     agent: colors.section.agentPrimary,
     category: colors.section.categoryPrimary,
     misc: colors.section.miscPrimary,
+    providers: colors.section.providersPrimary,
   };
 }
 
@@ -316,8 +352,8 @@ export function createMuiTheme(mode: Theme) {
   const isDark = mode === "dark";
 
   const shadows = buildShadows(
-    "rgba(0, 0, 0, 0.22)",
-    "rgba(0, 0, 0, 0.4)",
+    "rgba(20, 20, 19, 0.08)",
+    "rgba(0, 0, 0, 0.28)",
     isDark
   );
 

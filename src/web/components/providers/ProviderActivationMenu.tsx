@@ -144,26 +144,26 @@ export function ProviderActivationMenu({
         }}
         PaperProps={{
           sx: {
-            borderRadius: 2.5,
+            borderRadius: 3,
             maxHeight: "min(90vh, 860px)",
             width: "min(1280px, calc(100vw - 64px))",
             bgcolor: "background.default",
             overflow: "hidden",
+            border: `1px solid ${tokens.colors.neutral.divider}`,
             boxShadow: isDark
-              ? `0 24px 48px rgba(0,0,0,0.5), 0 0 0 1px ${alpha(providersColor, 0.15)}`
-              : `0 24px 48px rgba(0,0,0,0.12), 0 0 0 1px ${alpha(providersColor, 0.12)}`,
+              ? "0 24px 48px rgba(0,0,0,0.38)"
+              : "0 24px 48px rgba(20,20,19,0.16)",
           },
         }}
       >
-        {/* Accent top bar */}
         <Box
           sx={{
             height: 3,
-            background: `linear-gradient(90deg, ${providersColor} 0%, ${alpha(providersColor, 0.4)} 100%)`,
+            bgcolor: providersColor,
+            opacity: 0.86,
           }}
         />
 
-        {/* Dialog Header */}
         <Box
           id="providers-panel-title"
           sx={{
@@ -604,9 +604,7 @@ export function ProviderActivationMenu({
               bgcolor: isDark
                 ? alpha(tokens.colors.neutral.background, 0.35)
                 : alpha(tokens.colors.neutral.background, 0.55),
-              backgroundImage: isDark
-                ? "none"
-                : `linear-gradient(180deg, ${alpha(tokens.colors.neutral.surface, 0.4)} 0%, transparent 200px)`,
+              backgroundImage: "none",
             }}
           >
             <ProvidersEditor

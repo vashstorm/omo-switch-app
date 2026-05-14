@@ -6,7 +6,7 @@ import {
 import { alpha, useTheme } from "@mui/material/styles";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { TRANSITIONS } from "../../theme/motionTokens";
-import { radii } from "../../theme/designTokens";
+import { radii, lightTokens, darkTokens } from "../../theme/designTokens";
 import { MONO_FONT } from "../../theme/typography";
 
 interface MiscEditorProps {
@@ -69,7 +69,9 @@ function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, exp
   };
 
   const theme = useTheme();
-  const miscColor = (theme as any).sectionColors?.misc ?? "#86868B";
+  const isDark = theme.palette.mode === "dark";
+  const tokens = isDark ? darkTokens : lightTokens;
+  const miscColor = (theme as any).sectionColors?.misc ?? tokens.colors.section.miscPrimary;
 
   const isPrimitiveValue = (value: unknown): boolean => {
     return (
@@ -396,10 +398,10 @@ function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, exp
       sx={{
         display: "flex",
         flexDirection: "column",
-        gap: 1,
-        bgcolor: "background.paper",
-        borderRadius: 3,
-        p: 1.5,
+        gap: 1.25,
+        bgcolor: "transparent",
+        borderRadius: `${tokens.radii.card}px`,
+        p: 0,
         transition: TRANSITIONS.control,
       }}
     >
@@ -412,13 +414,11 @@ function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, exp
             sx={{
               overflow: "hidden",
               transition: TRANSITIONS.control,
-              boxShadow: collapsed 
-                ? "none" 
-                : "0 2px 12px rgba(0, 0, 0, 0.06)",
+              bgcolor: tokens.colors.neutral.elevatedSurface,
+              borderColor: collapsed ? tokens.colors.neutral.divider : alpha(miscColor, 0.24),
+              boxShadow: "none",
               "&:hover": {
-                boxShadow: collapsed 
-                  ? "0 2px 8px rgba(0, 0, 0, 0.04)" 
-                  : "0 4px 16px rgba(0, 0, 0, 0.08)",
+                borderColor: alpha(miscColor, 0.38),
               }
             }}
             data-testid={`misc-section-${sectionName}`}
@@ -426,17 +426,17 @@ function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, exp
           >
             <Box
               sx={{
-                height: 2,
-                bgcolor: collapsed ? "transparent" : miscColor,
+                height: 3,
+                bgcolor: collapsed ? "transparent" : alpha(miscColor, 0.85),
                 transition: TRANSITIONS.control,
                 opacity: 0.85,
               }}
             />
             <Box
               sx={{
-                py: 0.25,
-                px: 1,
-                bgcolor: collapsed ? "transparent" : alpha(miscColor, 0.02),
+                py: 0.75,
+                px: 1.25,
+                bgcolor: collapsed ? "transparent" : alpha(miscColor, isDark ? 0.1 : 0.06),
                 display: "flex",
                 alignItems: "center",
                 gap: 0.5,
@@ -455,9 +455,9 @@ function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, exp
                   gap: 1.25,
                   flex: 1,
                   justifyContent: "flex-start",
-                  borderRadius: 1.5,
+                  borderRadius: `${tokens.radii.control}px`,
                     p: "6px 8px",
-                    "&:hover": { bgcolor: alpha(miscColor, 0.04) },
+                    "&:hover": { bgcolor: alpha(miscColor, isDark ? 0.14 : 0.08) },
                     "&:focus-visible": {
                       outline: `2px solid ${alpha(miscColor, 0.5)}`,
                       outlineOffset: 1,
@@ -471,8 +471,8 @@ function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, exp
                     justifyContent: "center",
                     width: 24,
                     height: 24,
-                    borderRadius: 1.5,
-                    bgcolor: collapsed ? alpha(miscColor, 0.08) : miscColor,
+                    borderRadius: `${tokens.radii.control - 2}px`,
+                    bgcolor: collapsed ? alpha(miscColor, 0.12) : miscColor,
                     color: collapsed ? "text.secondary" : "common.white",
                     transition: TRANSITIONS.control,
                   }}
@@ -490,7 +490,7 @@ function MiscEditorComponent({ miscData, globalCollapseKey, globalExpandKey, exp
                     fontWeight: 500,
                     fontFamily: MONO_FONT,
                     color: "text.primary",
-                    letterSpacing: "-0.01em",
+                    letterSpacing: 0,
                     transition: TRANSITIONS.control,
                   }}
                 >

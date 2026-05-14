@@ -199,18 +199,19 @@ export function AppShell({
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
+        color: "text.primary",
       }}
     >
       <Box
         sx={{
-          maxWidth: 1400,
+          maxWidth: 1440,
           mx: "auto",
           width: "100%",
           flex: 1,
           minHeight: 0,
           display: "flex",
           flexDirection: "column",
-          px: { xs: 0, lg: 1, xl: 2 },
+          px: { xs: 0, lg: 2, xl: 3 },
         }}
       >
         {conflictBanner}
@@ -259,14 +260,15 @@ export function AppShell({
                   display: "flex",
                   flexDirection: "column",
                   bgcolor: tokens.colors.sidebar.railSurface,
+                  borderRight: `1px solid ${tokens.colors.neutral.divider}`,
                 },
               }}
               sx={{
                 display: { xs: "block", lg: "none" },
-"& .MuiDrawer-paper": {
-                   border: "none",
-                   boxShadow: "2px 0 16px rgba(0,0,0,0.08)",
-                 },
+                "& .MuiDrawer-paper": {
+                  border: "none",
+                  boxShadow: `0 16px 40px ${alpha(tokens.colors.neutral.textPrimary, isDark ? 0.28 : 0.12)}`,
+                },
               }}
             >
               <Box
@@ -275,7 +277,7 @@ export function AppShell({
                   alignItems: "center",
                   justifyContent: "space-between",
                   px: 2,
-                  py: 1.25,
+                  py: 1.5,
                   borderBottom: 1,
                   borderColor: "divider",
                   bgcolor: tokens.colors.sidebar.elevatedSurface,
@@ -284,12 +286,9 @@ export function AppShell({
                 <Typography
                   sx={{
                     fontSize: "0.95rem",
-                    fontWeight: 800,
-                    letterSpacing: "-0.025em",
-                    background: `linear-gradient(135deg, ${sectionColors.agentPrimary} 0%, ${sectionColors.categoryPrimary} 100%)`,
-                    backgroundClip: "text",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
+                    fontWeight: 500,
+                    letterSpacing: 0,
+                    color: tokens.colors.neutral.textPrimary,
                   }}
                 >
                   Navigation
@@ -347,7 +346,7 @@ export function AppShell({
                   startIcon={<X style={{ width: 16, height: 16 }} />}
                   sx={{
                     textTransform: "none",
-                    borderRadius: 2,
+                    borderRadius: `${tokens.radii.control}px`,
                     fontSize: "0.75rem",
                   }}
                 >
@@ -366,7 +365,7 @@ export function AppShell({
               width: 336,
               height: "100%",
               overflow: "hidden",
-              boxShadow: `1px 0 12px ${alpha(tokens.colors.neutral.textPrimary, 0.04)}`,
+              borderRight: `1px solid ${tokens.colors.neutral.divider}`,
             }}
           >
             <SidebarNav
@@ -402,14 +401,13 @@ export function AppShell({
               flex: 1,
               minHeight: 0,
               overflowY: "auto",
-              p: 1.5,
-              [theme.breakpoints.up("lg")]: { p: 2.5 },
+              p: { xs: 1.5, lg: 3 },
               paddingBottom: isDirty
                 ? { xs: `calc(${mobileActionBarHeight}px + env(safe-area-inset-bottom, 0px))`, sm: 1.5 }
                 : 1.5,
               display: "flex",
               flexDirection: "column",
-              gap: 4,
+              gap: 3,
               "& > *": { flexShrink: 0 },
             }}
           >
@@ -509,7 +507,6 @@ export function AppShell({
               zIndex: 100,
               bgcolor: alpha(tokens.colors.neutral.surface, 0.92),
               backdropFilter: "blur(12px)",
-              boxShadow: `0 -8px 22px ${alpha(tokens.colors.neutral.textPrimary, 0.08)}`,
               borderTop: `1px solid ${tokens.colors.neutral.divider}`,
               px: 2,
               pt: 1.25,
@@ -526,7 +523,7 @@ export function AppShell({
               sx={{
                 borderRadius: 2,
                 textTransform: "none",
-                fontWeight: 600,
+                fontWeight: 500,
                 fontSize: "0.8125rem",
                 transition: `all ${DURATIONS.FAST}ms ${EASING.EASE_OUT}`,
                 "&:hover": {
@@ -547,12 +544,12 @@ export function AppShell({
               sx={{
                 borderRadius: 2,
                 textTransform: "none",
-                fontWeight: 700,
+                fontWeight: 500,
                 fontSize: "0.8125rem",
-                boxShadow: `0 4px 14px ${alpha(tokens.colors.brand.main, 0.25)}`,
+                boxShadow: "none",
                 transition: `all ${DURATIONS.FAST}ms ${EASING.EASE_OUT}`,
                 "&:hover": {
-                  boxShadow: `0 6px 18px ${alpha(tokens.colors.brand.main, 0.35)}`,
+                  boxShadow: "none",
                 },
               }}
             >

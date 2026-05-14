@@ -14,8 +14,8 @@ describe("release layout", () => {
     await expectPathExists("omo-switch");
     await expectPathExists("web/index.html");
     await expectPathExists("web/index.js");
-    await expectPathExists("web/fonts/poppins-400.woff2");
-    await expectPathExists("web/fonts/ibm-plex-mono-400.woff2");
+    await expectPathExists("web/fonts/geist-sans-variable.woff2");
+    await expectPathExists("web/fonts/geist-mono-variable.woff2");
     await expectPathExists("config");
     await expectPathExists("config/profiles/default/opencode.jsonc");
   });

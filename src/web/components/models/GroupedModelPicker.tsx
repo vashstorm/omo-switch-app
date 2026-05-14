@@ -3,6 +3,7 @@ import { Box, Popover, List, ListItem, ListItemText, Chip, Typography, alpha, us
 import { X } from "lucide-react";
 import type { ModelGroup } from "../../../shared/config/types";
 import { MONO_FONT } from "../../theme/typography";
+import { lightTokens, darkTokens } from "../../theme/designTokens";
 
 interface GroupedModelPickerProps {
   groups: ModelGroup[];
@@ -40,6 +41,8 @@ function GroupedModelPickerComponent({
   containerSx,
 }: GroupedModelPickerProps) {
   const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const tokens = isDark ? darkTokens : lightTokens;
   const popoverId = useId();
   const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -239,6 +242,8 @@ function GroupedModelPickerComponent({
         onClick={handleTriggerClick}
         disabled={disabled || isEmptyState}
         style={{
+          position: "relative",
+          zIndex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "flex-start",
@@ -359,7 +364,9 @@ function GroupedModelPickerComponent({
           borderRadius: 1,
           borderStyle: "solid",
           borderWidth: open ? 2 : 1,
-          borderColor: open ? theme.palette.primary.main : theme.palette.divider,
+          borderColor: open ? accent : tokens.colors.neutral.divider,
+          backgroundColor: tokens.colors.neutral.surface,
+          zIndex: 0,
           transition: "border-color 150ms cubic-bezier(0.4, 0, 0.2, 1)",
           overflow: "hidden",
           minWidth: "0%",
@@ -412,7 +419,7 @@ function GroupedModelPickerComponent({
             letterSpacing: "0.05em",
             textTransform: "uppercase",
             color: open ? "primary.main" : "text.secondary",
-            zIndex: 1,
+            zIndex: 2,
             pointerEvents: "none",
             fontFamily: MONO_FONT,
             lineHeight: "1.4375em",
@@ -434,7 +441,9 @@ function GroupedModelPickerComponent({
         PaperProps={{
           sx: {
             borderRadius: 2,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+            border: `1px solid ${tokens.colors.neutral.divider}`,
+            bgcolor: tokens.colors.neutral.surface,
+            boxShadow: isDark ? "0 18px 36px rgba(0,0,0,0.34)" : "0 18px 36px rgba(20,20,19,0.12)",
             maxHeight: 400,
             overflow: "hidden",
           } as object,
@@ -507,12 +516,12 @@ function GroupedModelPickerComponent({
                       cursor: "pointer",
                       py: 0.25,
                       px: 1.5,
-                      bgcolor: isActive
-                        ? alpha(accent, 0.08)
+                    bgcolor: isActive
+                        ? alpha(accent, isDark ? 0.16 : 0.1)
                         : isFocused
                           ? alpha(theme.palette.action.hover, 0.5)
                           : "transparent",
-                      "&:hover": { bgcolor: alpha(accent, 0.06) },
+                      "&:hover": { bgcolor: alpha(accent, isDark ? 0.14 : 0.08) },
                     }}
                   >
                     <ListItemText
@@ -556,7 +565,9 @@ function GroupedModelPickerComponent({
           sx: {
             pointerEvents: "auto",
             borderRadius: 2,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+            border: `1px solid ${tokens.colors.neutral.divider}`,
+            bgcolor: tokens.colors.neutral.surface,
+            boxShadow: isDark ? "0 18px 36px rgba(0,0,0,0.34)" : "0 18px 36px rgba(20,20,19,0.12)",
             maxHeight: 400,
             overflow: "hidden",
             ml: 0.5,
@@ -593,11 +604,11 @@ function GroupedModelPickerComponent({
                     py: 0.25,
                     px: 1.5,
                     bgcolor: isSelected
-                      ? alpha(accent, 0.1)
+                      ? alpha(accent, isDark ? 0.18 : 0.12)
                       : isFocused
                         ? alpha(theme.palette.action.hover, 0.5)
                         : "transparent",
-                    "&:hover": { bgcolor: alpha(accent, 0.06) },
+                    "&:hover": { bgcolor: alpha(accent, isDark ? 0.14 : 0.08) },
                   }}
                 >
                   <ListItemText

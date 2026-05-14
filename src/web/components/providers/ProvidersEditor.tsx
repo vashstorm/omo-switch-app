@@ -415,15 +415,11 @@ function ProvidersEditorComponent({
               borderRadius: 2,
               backgroundImage: "none",
               bgcolor: softPaper,
-              boxShadow: collapsed
-                ? `0 1px 3px ${alpha(theme.palette.common.black, isDark ? 0.15 : 0.04)}`
-                : `0 8px 24px ${alpha(theme.palette.common.black, isDark ? 0.2 : 0.06)}`,
+              boxShadow: "none",
               border: `1px solid ${collapsed ? subtleBorder : alpha(providersColor, 0.18)}`,
               "&:hover": {
                 borderColor: alpha(providersColor, 0.28),
-                boxShadow: collapsed
-                  ? `0 2px 6px ${alpha(theme.palette.common.black, isDark ? 0.2 : 0.06)}`
-                  : `0 10px 28px ${alpha(theme.palette.common.black, isDark ? 0.24 : 0.08)}`,
+                boxShadow: "none",
               },
             }}
             data-testid={`provider-section-${provider.name}`}

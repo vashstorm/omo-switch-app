@@ -12,6 +12,7 @@ import { DURATIONS, EASING } from "../../theme/motionTokens";
 import { lightTokens, darkTokens } from "../../theme/designTokens";
 import { StatusPill } from "../common/StatusPill";
 import { ProviderActivationMenu, type ProviderActivationMenuProps } from "../providers/ProviderActivationMenu";
+import { DISPLAY_FONT } from "../../theme/typography";
 
 const spin = keyframes({
   from: { transform: "rotate(0deg)" },
@@ -78,10 +79,6 @@ export function AppHeader({
   const isDark = theme.palette.mode === "dark";
   const tokens = isDark ? darkTokens : lightTokens;
 
-  const agentColor = tokens.colors.section.agentPrimary;
-  const categoryColor = tokens.colors.section.categoryPrimary;
-  const miscColor = tokens.colors.section.miscPrimary;
-
   const hoverTransition = `all ${DURATIONS.FAST}ms ${EASING.EASE_OUT}`;
 
   return (
@@ -92,25 +89,24 @@ export function AppHeader({
           flexShrink: 0,
           zIndex: 40,
           width: "100%",
-          bgcolor: "background.paper",
+          bgcolor: "background.default",
         }}
       >
         <Box
           sx={{
             display: "flex",
-            height: { xs: "56px", sm: "52px" },
+            height: 64,
             alignItems: "center",
             justifyContent: "space-between",
-            px: { xs: 2, lg: 3 },
-            bgcolor: isDark ? "rgba(0, 0, 0, 0.8)" : "rgba(255, 255, 255, 0.72)",
-            backdropFilter: "saturate(180%) blur(20px)",
+            px: { xs: 2, lg: 3.5 },
+            bgcolor: tokens.colors.neutral.surface,
             borderBottom: "1px solid",
             borderColor: "divider",
             position: "sticky",
             top: 0,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <IconButton
               onClick={onMobileNavToggle}
               aria-label="Toggle navigation"
@@ -127,11 +123,23 @@ export function AppHeader({
             <Typography
               component="h1"
               sx={{
-                fontSize: { xs: "1rem", sm: "1.125rem" },
-                fontWeight: 700,
-                letterSpacing: "-0.02em",
+                fontFamily: DISPLAY_FONT,
+                fontSize: "1.35rem",
+                fontWeight: 400,
+                letterSpacing: 0,
                 color: tokens.colors.neutral.textPrimary,
                 display: { xs: "none", sm: "block" },
+                mr: 0.5,
+                "&::before": {
+                  content: '""',
+                  display: "inline-block",
+                  width: 9,
+                  height: 9,
+                  mr: 1,
+                  verticalAlign: "0.05em",
+                  backgroundColor: tokens.colors.neutral.textPrimary,
+                  clipPath: "polygon(45% 0, 55% 0, 55% 45%, 100% 45%, 100% 55%, 55% 55%, 55% 100%, 45% 100%, 45% 55%, 0 55%, 0 45%, 45% 45%)",
+                },
               }}
             >
               {title}
@@ -146,11 +154,11 @@ export function AppHeader({
                   sx={{
                     color: isAllCollapsed ? tokens.colors.brand.main : tokens.colors.neutral.textSecondary,
                     transition: hoverTransition,
-                    bgcolor: isAllCollapsed ? alpha(tokens.colors.brand.main, 0.08) : "transparent",
+                    bgcolor: isAllCollapsed ? tokens.colors.brand.soft : "transparent",
                     p: 0.5,
                     "&:hover": {
                       color: tokens.colors.brand.main,
-                      bgcolor: alpha(tokens.colors.brand.main, 0.12),
+                      bgcolor: tokens.colors.brand.soft,
                     },
                   }}
                 >
@@ -230,7 +238,7 @@ export function AppHeader({
                     p: 0.5,
                     "&:hover": {
                       color: tokens.colors.brand.main,
-                      bgcolor: alpha(tokens.colors.brand.main, 0.08),
+                      bgcolor: tokens.colors.brand.soft,
                     },
                   }}
                 >
@@ -248,7 +256,7 @@ export function AppHeader({
                     p: 0.5,
                     "&:hover": {
                       color: tokens.colors.status.error,
-                      bgcolor: alpha(tokens.colors.status.error, 0.08),
+                      bgcolor: alpha(tokens.colors.status.error, 0.1),
                     },
                     "&.Mui-disabled": {
                       color: "text.disabled",
@@ -273,7 +281,7 @@ export function AppHeader({
                   color: saveSuccess ? tokens.colors.status.success : tokens.colors.brand.main,
                   "&:hover": {
                     color: tokens.colors.brand.main,
-                    bgcolor: alpha(tokens.colors.brand.main, 0.08),
+                    bgcolor: tokens.colors.brand.soft,
                   },
                   "&.Mui-disabled": {
                     color: "text.disabled",
@@ -303,7 +311,7 @@ export function AppHeader({
             py: 0.75,
             borderBottom: 1,
             borderColor: "divider",
-            bgcolor: "background.paper",
+            bgcolor: "background.default",
           }}
         >
           {loading && (

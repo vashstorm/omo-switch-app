@@ -17,88 +17,90 @@ export const spacing = {
 export const radii = {
   control: 8,
   chip: 980,
-  card: 8,
-  section: 12,
-  dialog: 4,
+  card: 12,
+  section: 16,
+  dialog: 12,
 } as const;
 
 const lightColors = {
   neutral: {
-    background: "#f5f5f7",
-    surface: "#ffffff",
-    elevatedSurface: "#f0f0f2",
-    textPrimary: "#1d1d1f",
-    textSecondary: "rgba(0, 0, 0, 0.8)",
-    divider: "rgba(0, 0, 0, 0.08)",
+    background: "#faf9f5",
+    surface: "#faf9f5",
+    elevatedSurface: "#efe9de",
+    textPrimary: "#141413",
+    textSecondary: "#6c6a64",
+    divider: "#e6dfd8",
   },
   brand: {
-    main: "#0071e3",
-    hover: "#0077ED",
-    deep: "#0066cc",
-    soft: "rgba(0, 113, 227, 0.12)",
+    main: "#cc785c",
+    hover: "#a9583e",
+    deep: "#a9583e",
+    soft: "rgba(204, 120, 92, 0.14)",
   },
   accent: {
     teal: {
-      main: "#0071e3",
-      deep: "#0066cc",
+      main: "#5db8a6",
+      deep: "#3b8f80",
     },
   },
   status: {
-    success: "#34A57E",
-    warning: "#D49842",
-    error: "#D86868",
+    success: "#5db872",
+    warning: "#d4a017",
+    error: "#c64545",
   },
   section: {
-    agentPrimary: "#0071e3",
-    categoryPrimary: "#5856D6",
-    miscPrimary: "#86868B",
+    agentPrimary: "#cc785c",
+    categoryPrimary: "#5db8a6",
+    miscPrimary: "#8e8b82",
+    providersPrimary: "#e8a55a",
   },
   sidebar: {
-    railSurface: "#f5f5f7",
-    elevatedSurface: "#ffffff",
-    trayTint: "#f0f0f2",
-    scrollbarThumb: "rgba(0, 0, 0, 0.15)",
-    focusRing: "#0071e3",
+    railSurface: "#f5f0e8",
+    elevatedSurface: "#faf9f5",
+    trayTint: "#efe9de",
+    scrollbarThumb: "rgba(20, 20, 19, 0.18)",
+    focusRing: "#cc785c",
   },
 };
 
 const darkColors = {
   neutral: {
-    background: "#000000",
-    surface: "#1c1c1e",
-    elevatedSurface: "#2c2c2e",
-    textPrimary: "#f5f5f7",
-    textSecondary: "rgba(255, 255, 255, 0.7)",
-    divider: "rgba(255, 255, 255, 0.08)",
+    background: "#181715",
+    surface: "#1f1e1b",
+    elevatedSurface: "#252320",
+    textPrimary: "#faf9f5",
+    textSecondary: "#a09d96",
+    divider: "rgba(250, 249, 245, 0.12)",
   },
   brand: {
-    main: "#2997ff",
-    hover: "#5EB5FF",
-    deep: "#0a84ff",
-    soft: "rgba(41, 151, 255, 0.15)",
+    main: "#cc785c",
+    hover: "#df9478",
+    deep: "#a9583e",
+    soft: "rgba(204, 120, 92, 0.18)",
   },
   accent: {
     teal: {
-      main: "#2997ff",
-      deep: "#0a84ff",
+      main: "#5db8a6",
+      deep: "#7bc9ba",
     },
   },
   status: {
-    success: "#30D158",
-    warning: "#FFD60A",
-    error: "#FF453A",
+    success: "#5db872",
+    warning: "#e8a55a",
+    error: "#ff7a70",
   },
   section: {
-    agentPrimary: "#2997ff",
-    categoryPrimary: "#BF5AF2",
-    miscPrimary: "#98989D",
+    agentPrimary: "#cc785c",
+    categoryPrimary: "#5db8a6",
+    miscPrimary: "#a09d96",
+    providersPrimary: "#e8a55a",
   },
   sidebar: {
-    railSurface: "#1c1c1e",
-    elevatedSurface: "#2c2c2e",
-    trayTint: "#242426",
-    scrollbarThumb: "rgba(255, 255, 255, 0.15)",
-    focusRing: "#2997ff",
+    railSurface: "#181715",
+    elevatedSurface: "#252320",
+    trayTint: "#1f1e1b",
+    scrollbarThumb: "rgba(250, 249, 245, 0.18)",
+    focusRing: "#cc785c",
   },
 };
 
@@ -132,6 +134,7 @@ export interface ColorTokens {
     agentPrimary: string;
     categoryPrimary: string;
     miscPrimary: string;
+    providersPrimary: string;
   };
   sidebar: {
     railSurface: string;
@@ -170,13 +173,13 @@ export function createTokenTheme(tokens: DesignTokens): ThemeOptions {
         main: tokens.colors.brand.main,
         light: tokens.colors.brand.soft,
         dark: tokens.colors.brand.deep,
-        contrastText: tokens.colors.neutral.surface,
+        contrastText: "#ffffff",
       },
       secondary: {
         main: tokens.colors.accent.teal.main,
         light: tokens.colors.accent.teal.deep,
         dark: tokens.colors.accent.teal.deep,
-        contrastText: tokens.colors.neutral.surface,
+        contrastText: "#ffffff",
       },
       success: {
         main: tokens.colors.status.success,

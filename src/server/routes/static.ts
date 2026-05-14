@@ -28,7 +28,7 @@ function resolveRelativePath(requestPath: string): string {
 }
 
 function resolveContentType(filePath: string): string {
-  return CONTENT_TYPES[path.extname(filePath).toLowerCase()] || "application/octet-stream";
+  return CONTENT_TYPES[path.extname(resolveRelativePath(filePath)).toLowerCase()] || "application/octet-stream";
 }
 
 function renderShellHtml(): string {

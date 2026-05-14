@@ -72,8 +72,8 @@ export function DialogFrame({
           borderRadius: '12px',
           overflow: "hidden",
           boxShadow: theme.palette.mode === "dark"
-            ? "0 24px 80px rgba(0, 0, 0, 0.5), 0 8px 32px rgba(0, 0, 0, 0.3)"
-            : "0 24px 80px rgba(0, 0, 0, 0.12), 0 8px 32px rgba(0, 0, 0, 0.08)",
+            ? "0 24px 48px rgba(0, 0, 0, 0.38)"
+            : "0 24px 48px rgba(20, 20, 19, 0.16)",
         },
       }}
       BackdropProps={{
@@ -127,10 +127,10 @@ export function DialogFrame({
                 data-testid={titleTestId}
                 sx={{
                   fontFamily: DISPLAY_FONT,
-                  fontWeight: 700,
+                  fontWeight: 400,
                   fontSize: "1.25rem",
                   lineHeight: 1.2,
-                  letterSpacing: "-0.02em",
+                  letterSpacing: 0,
                   color: theme.palette.text.primary,
                 }}
               >

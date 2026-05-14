@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import { TRANSITIONS } from "../../theme/motionTokens";
-import { radii } from "../../theme/designTokens";
+import { radii, lightTokens, darkTokens } from "../../theme/designTokens";
 import { MONO_FONT } from "../../theme/typography";
 import { GroupedModelPicker } from "../models/GroupedModelPicker";
 
@@ -217,7 +217,9 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
   };
 
   const theme = useTheme();
-  const agentColor = (theme as any).sectionColors?.agent ?? "#0071e3";
+  const isDark = theme.palette.mode === "dark";
+  const tokens = isDark ? darkTokens : lightTokens;
+  const agentColor = (theme as any).sectionColors?.agent ?? tokens.colors.brand.main;
   const hasUltrawork = agent.ultrawork != null;
   const isSisyphus = id === "sisyphus";
   const isSisyphusJunior = id === "sisyphus-junior";
@@ -227,23 +229,22 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
       data-testid={`agent-card-${id}`}
       id={`agent-${id}`}
       sx={{
-        borderRadius: 3,
+        borderRadius: `${tokens.radii.card}px`,
         overflow: "hidden",
         transition: TRANSITIONS.control,
-        boxShadow: collapsed
-          ? "none"
-          : "0 2px 12px rgba(0, 0, 0, 0.06)",
+        bgcolor: tokens.colors.neutral.elevatedSurface,
+        borderColor: collapsed ? tokens.colors.neutral.divider : alpha(agentColor, 0.24),
+        boxShadow: "none",
         "&:hover": {
-          boxShadow: collapsed
-            ? "0 2px 8px rgba(0, 0, 0, 0.04)"
-            : "0 4px 16px rgba(0, 0, 0, 0.08)",
+          borderColor: alpha(agentColor, 0.42),
+          bgcolor: isDark ? tokens.colors.neutral.elevatedSurface : "#f3ede4",
         }
       }}
     >
       <Box
         sx={{
-          height: 2,
-          bgcolor: collapsed ? "transparent" : agentColor,
+          height: 3,
+          bgcolor: collapsed ? "transparent" : alpha(agentColor, 0.85),
           transition: TRANSITIONS.control,
           opacity: 0.85,
         }}
@@ -253,9 +254,9 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          py: 0.5,
-          px: 1.5,
-          bgcolor: collapsed ? "transparent" : alpha(agentColor, 0.02),
+          py: 0.75,
+          px: 1.25,
+          bgcolor: collapsed ? "transparent" : alpha(agentColor, isDark ? 0.1 : 0.06),
           borderBottom: "1px solid",
           borderColor: collapsed ? "transparent" : alpha(theme.palette.divider, 0.4),
           transition: TRANSITIONS.control,
@@ -271,12 +272,12 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
             display: "flex",
             alignItems: "center",
             gap: 1.5,
-            borderRadius: 1.5,
+            borderRadius: `${tokens.radii.control}px`,
             padding: "6px 8px",
             flex: 1,
             justifyContent: "flex-start",
             "&:hover": {
-              bgcolor: alpha(agentColor, 0.06),
+              bgcolor: alpha(agentColor, isDark ? 0.14 : 0.09),
             }
           }}
         >
@@ -287,8 +288,8 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
               justifyContent: "center",
               width: 24,
               height: 24,
-              borderRadius: 1.5,
-              bgcolor: collapsed ? alpha(agentColor, 0.08) : agentColor,
+              borderRadius: `${tokens.radii.control - 2}px`,
+              bgcolor: collapsed ? alpha(agentColor, 0.12) : agentColor,
               color: collapsed ? "text.secondary" : "common.white",
               transition: TRANSITIONS.control,
             }}
@@ -306,7 +307,7 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
               fontFamily: MONO_FONT,
               color: collapsed ? "text.primary" : agentColor,
               fontSize: "0.8125rem",
-              letterSpacing: "-0.01em",
+              letterSpacing: 0,
               transition: TRANSITIONS.control,
             }}
           >
@@ -324,7 +325,7 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                 fontWeight: 500,
                 borderColor: alpha(agentColor, 0.15),
                 color: "text.secondary",
-                borderRadius: 1,
+                borderRadius: 999,
                 transition: TRANSITIONS.control,
               }}
             />
@@ -579,7 +580,7 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     minHeight: "40px",
-                    bgcolor: alpha(theme.palette.background.default, 0.3)
+                    bgcolor: tokens.colors.neutral.surface,
                   },
                   "& .MuiInputBase-inputMultiline": {
                     padding: 0,
@@ -617,11 +618,11 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                   mt: 1, 
                   pt: 2, 
                   borderTop: `1px solid ${alpha(theme.palette.divider, 0.6)}`,
-                  bgcolor: alpha(agentColor, 0.03),
+                  bgcolor: alpha(agentColor, isDark ? 0.08 : 0.045),
                   mx: -2,
                   px: 2,
                   pb: 1.5,
-                  borderRadius: 1,
+                  borderRadius: `${tokens.radii.control}px`,
                 }}
               >
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
@@ -632,7 +633,7 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                       sx={{ 
                         fontWeight: 700, 
                         textTransform: "uppercase", 
-                        letterSpacing: "0.05em",
+                        letterSpacing: "0.08em",
                         color: "text.secondary",
                         fontSize: "0.7rem"
                       }}
@@ -681,7 +682,7 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                     sx={{ 
                       p: 1.5, 
                       borderRadius: 1, 
-                      bgcolor: "background.paper",
+                      bgcolor: tokens.colors.neutral.surface,
                       border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
                       boxShadow: "none"
                     }}
@@ -772,7 +773,7 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
                       sx={{
                         "& .MuiOutlinedInput-root": {
                           minHeight: "40px",
-                          bgcolor: alpha(theme.palette.background.default, 0.3)
+                          bgcolor: tokens.colors.neutral.surface,
                         },
                         "& .MuiInputBase-inputMultiline": {
                           padding: 0,
