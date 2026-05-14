@@ -159,7 +159,11 @@ function CategoryCardComponent({ id, category, availableModels, availableModelGr
   };
 
   const handleFallbackPickerChange = (newValue: string | string[]) => {
-    handleChange("fallback_models", newValue as string[]);
+    const fallbackModels = Array.isArray(newValue) ? newValue : [];
+    const newCategory = { ...category, fallback_models: fallbackModels };
+    const cleaned = filterEmptyFields(newCategory, CATEGORY_MANAGED_FIELDS) as Partial<CategoryConfig>;
+    cleaned.fallback_models = fallbackModels;
+    onChange(cleaned);
   };
 
   const handleVariantChange = (e: SelectChangeEvent) => {

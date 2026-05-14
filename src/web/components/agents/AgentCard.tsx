@@ -134,7 +134,11 @@ function AgentCardComponent({ id, agent, availableModels, availableModelGroups, 
   };
 
   const handleFallbackPickerChange = (newValue: string | string[]) => {
-    handleChange("fallback_models", newValue as string[]);
+    const fallbackModels = Array.isArray(newValue) ? newValue : [];
+    const newAgent = { ...agent, fallback_models: fallbackModels };
+    const cleaned = filterEmptyFields(newAgent, AGENT_MANAGED_FIELDS) as Partial<AgentConfig>;
+    cleaned.fallback_models = fallbackModels;
+    onChange(cleaned);
   };
 
   const handleVariantChange = (e: SelectChangeEvent) => {
