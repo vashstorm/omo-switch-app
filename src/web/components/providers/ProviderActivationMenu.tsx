@@ -12,7 +12,7 @@ import {
   alpha,
   useTheme,
 } from "@mui/material";
-import { Settings2, X, Layers, Cpu, Search, CheckCircle2, CircleOff } from "lucide-react";
+import { Settings2, X, Layers, Cpu, Search, Power, PowerOff, XCircle, Database } from "lucide-react";
 import { MONO_FONT } from "../../theme/typography";
 import { lightTokens, darkTokens } from "../../theme/designTokens";
 import { TRANSITIONS, DURATIONS, EASING } from "../../theme/motionTokens";
@@ -69,22 +69,33 @@ export function ProviderActivationMenu({
     [providerCatalog],
   );
 
-  const normalizedSearch = activationSearch.trim().toLowerCase();
-  const visibleActivationProviders = useMemo(
-    () =>
-      normalizedSearch
-        ? activationProviders.filter((provider) =>
-            provider.toLowerCase().includes(normalizedSearch),
-          )
-        : activationProviders,
-    [activationProviders, normalizedSearch],
+  const disabledSet = useMemo(
+    () => new Set(disabledProviders),
+    [disabledProviders],
   );
 
-  const enabledCount = activationProviders.filter((p) => !disabledProviders.includes(p)).length;
+  const normalizedSearch = activationSearch.trim().toLowerCase();
+  const visibleActivationProviders = useMemo(() => {
+    const filtered = normalizedSearch
+      ? activationProviders.filter((provider) =>
+          provider.toLowerCase().includes(normalizedSearch),
+        )
+      : activationProviders;
+    // Sort: enabled first, then alphabetically
+    return filtered.sort((a, b) => {
+      const aEnabled = !disabledSet.has(a);
+      const bEnabled = !disabledSet.has(b);
+      if (aEnabled !== bEnabled) return aEnabled ? -1 : 1;
+      return a.localeCompare(b);
+    });
+  }, [activationProviders, normalizedSearch, disabledSet]);
+
+  const enabledCount = activationProviders.filter((p) => !disabledSet.has(p)).length;
   const disabledCount = activationProviders.length - enabledCount;
+  const totalModels = providersList.reduce((sum, p) => sum + p.models.length, 0);
 
   const handleToggle = (provider: string) => {
-    const isEnabled = !disabledProviders.includes(provider);
+    const isEnabled = !disabledSet.has(provider);
     const newDisabledProviders = isEnabled
       ? [...disabledProviders, provider]
       : disabledProviders.filter((p) => p !== provider);
@@ -193,19 +204,46 @@ export function ProviderActivationMenu({
               >
                 Providers
               </Typography>
-              <Typography
-                sx={{
-                  fontSize: "0.6875rem",
-                  color: "text.secondary",
-                  fontFamily: MONO_FONT,
-                  lineHeight: 1.3,
-                }}
-              >
-                {enabledCount} of {activationProviders.length} enabled for{" "}
-                <Box component="span" sx={{ color: providersColor, fontWeight: 600 }}>
-                  {profileId}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 0.25 }}>
+                <Typography
+                  sx={{
+                    fontSize: "0.6875rem",
+                    color: "text.secondary",
+                    fontFamily: MONO_FONT,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  <Box component="span" sx={{ color: providersColor, fontWeight: 600 }}>
+                    {profileId}
+                  </Box>
+                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Cpu size={11} color={providersColor} />
+                  <Typography
+                    sx={{
+                      fontSize: "0.625rem",
+                      color: "text.secondary",
+                      fontFamily: MONO_FONT,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {enabledCount}/{activationProviders.length}
+                  </Typography>
                 </Box>
-              </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Database size={11} color={alpha(muiTheme.palette.text.secondary as string, 0.7)} />
+                  <Typography
+                    sx={{
+                      fontSize: "0.625rem",
+                      color: "text.secondary",
+                      fontFamily: MONO_FONT,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {totalModels}
+                  </Typography>
+                </Box>
+              </Box>
             </Box>
           </Box>
           <IconButton
@@ -239,15 +277,15 @@ export function ProviderActivationMenu({
           {/* Left column — Profile Activation */}
           <Box
             sx={{
-              width: { xs: "100%", md: 280 },
+              width: { xs: "100%", md: 320 },
               flexShrink: 0,
               borderRight: { md: `1px solid ${alpha(providersColor, 0.1)}` },
               borderBottom: { xs: `1px solid ${alpha(providersColor, 0.1)}`, md: "none" },
               display: "flex",
               flexDirection: "column",
               bgcolor: isDark
-                ? alpha(tokens.colors.neutral.elevatedSurface, 0.5)
-                : alpha(tokens.colors.neutral.elevatedSurface, 0.45),
+                ? alpha(tokens.colors.neutral.elevatedSurface, 0.4)
+                : alpha(tokens.colors.neutral.elevatedSurface, 0.55),
             }}
           >
             {/* Section label */}
@@ -277,6 +315,7 @@ export function ProviderActivationMenu({
             </Box>
 
             <Box sx={{ px: 1.5, pb: 1.25 }}>
+              {/* Stats + Quick Actions */}
               <Box
                 sx={{
                   display: "grid",
@@ -292,10 +331,20 @@ export function ProviderActivationMenu({
                     borderRadius: 1.5,
                     border: `1px solid ${alpha(providersColor, 0.14)}`,
                     bgcolor: alpha(providersColor, isDark ? 0.12 : 0.07),
+                    transition: TRANSITIONS.control,
+                    cursor: enabledCount < activationProviders.length ? "pointer" : "default",
+                    "&:hover": enabledCount < activationProviders.length
+                      ? { bgcolor: alpha(providersColor, isDark ? 0.18 : 0.12), borderColor: alpha(providersColor, 0.25) }
+                      : {},
+                  }}
+                  onClick={() => {
+                    if (enabledCount < activationProviders.length) {
+                      updateDisabledProviders(profileId, []);
+                    }
                   }}
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.625, mb: 0.25 }}>
-                    <CheckCircle2 size={13} color={providersColor} />
+                    <Power size={13} color={providersColor} />
                     <Typography
                       sx={{
                         color: "text.secondary",
@@ -304,7 +353,7 @@ export function ProviderActivationMenu({
                         fontWeight: 600,
                       }}
                     >
-                      Enabled
+                      Enable All
                     </Typography>
                   </Box>
                   <Typography
@@ -326,10 +375,20 @@ export function ProviderActivationMenu({
                     borderRadius: 1.5,
                     border: `1px solid ${alpha(tokens.colors.neutral.textPrimary, 0.08)}`,
                     bgcolor: alpha(tokens.colors.neutral.surface, isDark ? 0.16 : 0.55),
+                    transition: TRANSITIONS.control,
+                    cursor: disabledCount > 0 ? "pointer" : "default",
+                    "&:hover": disabledCount > 0
+                      ? { bgcolor: alpha(tokens.colors.neutral.textPrimary, isDark ? 0.06 : 0.04), borderColor: alpha(tokens.colors.neutral.textPrimary, 0.12) }
+                      : {},
+                  }}
+                  onClick={() => {
+                    if (disabledCount > 0) {
+                      updateDisabledProviders(profileId, [...activationProviders]);
+                    }
                   }}
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.625, mb: 0.25 }}>
-                    <CircleOff size={13} color={alpha(muiTheme.palette.text.secondary as string, 0.7)} />
+                    <PowerOff size={13} color={alpha(muiTheme.palette.text.secondary as string, 0.7)} />
                     <Typography
                       sx={{
                         color: "text.secondary",
@@ -338,7 +397,7 @@ export function ProviderActivationMenu({
                         fontWeight: 600,
                       }}
                     >
-                      Disabled
+                      Disable All
                     </Typography>
                   </Box>
                   <Typography
@@ -371,6 +430,17 @@ export function ProviderActivationMenu({
                       <Search size={14} color={alpha(muiTheme.palette.text.secondary as string, 0.72)} />
                     </InputAdornment>
                   ),
+                  endAdornment: normalizedSearch ? (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        onClick={() => setActivationSearch("")}
+                        sx={{ p: 0.25, color: "text.secondary", "&:hover": { color: "text.primary" } }}
+                      >
+                        <XCircle size={14} />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null,
                 }}
                 sx={{
                   "& .MuiOutlinedInput-root": {
@@ -403,29 +473,39 @@ export function ProviderActivationMenu({
               }}
             >
               {activationProviders.length === 0 ? (
-                <Typography
+                <Box
                   sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    py: 4,
+                    gap: 1,
                     color: "text.disabled",
-                    fontSize: "0.8125rem",
-                    fontStyle: "italic",
-                    px: 0.5,
-                    py: 1,
                   }}
                 >
-                  No providers configured
-                </Typography>
+                  <Layers size={28} strokeWidth={1.25} />
+                  <Typography sx={{ fontSize: "0.8125rem", fontFamily: MONO_FONT }}>
+                    No providers configured
+                  </Typography>
+                </Box>
               ) : visibleActivationProviders.length === 0 ? (
-                <Typography
+                <Box
                   sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    py: 4,
+                    gap: 1,
                     color: "text.disabled",
-                    fontSize: "0.75rem",
-                    px: 0.75,
-                    py: 1,
-                    fontFamily: MONO_FONT,
                   }}
                 >
-                  No matching providers
-                </Typography>
+                  <Search size={24} strokeWidth={1.25} />
+                  <Typography sx={{ fontSize: "0.75rem", fontFamily: MONO_FONT }}>
+                    No matching providers
+                  </Typography>
+                </Box>
               ) : (
                 visibleActivationProviders.map((provider) => {
                   const isEnabled = !disabledProviders.includes(provider);
@@ -439,47 +519,49 @@ export function ProviderActivationMenu({
                         alignItems: "center",
                         justifyContent: "space-between",
                         gap: 1,
-                        minHeight: 42,
+                        minHeight: 40,
                         py: 0.5,
-                        pl: 1.25,
+                        pl: 1.5,
                         pr: 0.75,
                         borderRadius: 1.5,
                         cursor: "pointer",
                         transition: `all ${DURATIONS.FAST}ms ${EASING.EASE_OUT}`,
                         bgcolor: isEnabled
-                          ? alpha(providersColor, isDark ? 0.12 : 0.07)
+                          ? alpha(providersColor, isDark ? 0.1 : 0.06)
                           : "transparent",
                         border: `1px solid ${isEnabled
-                          ? alpha(providersColor, 0.18)
-                          : alpha(tokens.colors.neutral.textPrimary, 0.07)}`,
+                          ? alpha(providersColor, 0.15)
+                          : alpha(tokens.colors.neutral.textPrimary, 0.06)}`,
+                        position: "relative",
+                        overflow: "hidden",
+                        "&::before": {
+                          content: '""',
+                          position: "absolute",
+                          left: 0,
+                          top: "20%",
+                          bottom: "20%",
+                          width: 3,
+                          borderRadius: "0 2px 2px 0",
+                          bgcolor: isEnabled ? providersColor : "transparent",
+                          transition: `background-color ${DURATIONS.FAST}ms ${EASING.EASE_OUT}`,
+                        },
                         "&:hover": {
                           bgcolor: isEnabled
-                            ? alpha(providersColor, isDark ? 0.18 : 0.1)
+                            ? alpha(providersColor, isDark ? 0.16 : 0.1)
                             : alpha(tokens.colors.neutral.textPrimary, 0.04),
                           borderColor: isEnabled
                             ? alpha(providersColor, 0.28)
                             : alpha(tokens.colors.neutral.textPrimary, 0.11),
+                          transform: "translateX(2px)",
                         },
                       }}
                     >
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.875, minWidth: 0 }}>
-                        <Box
-                          sx={{
-                            width: 7,
-                            height: 7,
-                            borderRadius: "50%",
-                            bgcolor: isEnabled
-                              ? providersColor
-                              : alpha(muiTheme.palette.text.secondary as string, 0.36),
-                            boxShadow: isEnabled ? `0 0 0 3px ${alpha(providersColor, 0.12)}` : "none",
-                            flexShrink: 0,
-                          }}
-                        />
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, ml: 0.5 }}>
                         <Typography
                           sx={{
                             fontFamily: MONO_FONT,
                             fontSize: "0.75rem",
-                            fontWeight: isEnabled ? 650 : 500,
+                            fontWeight: isEnabled ? 600 : 500,
                             color: isEnabled ? "text.primary" : "text.secondary",
                             transition: `color ${DURATIONS.FAST}ms ${EASING.EASE_OUT}`,
                             userSelect: "none",
@@ -519,7 +601,12 @@ export function ProviderActivationMenu({
               minWidth: 0,
               overflowY: "auto",
               p: { xs: 1.5, md: 2 },
-              bgcolor: alpha(tokens.colors.neutral.background, isDark ? 0.2 : 0.35),
+              bgcolor: isDark
+                ? alpha(tokens.colors.neutral.background, 0.35)
+                : alpha(tokens.colors.neutral.background, 0.55),
+              backgroundImage: isDark
+                ? "none"
+                : `linear-gradient(180deg, ${alpha(tokens.colors.neutral.surface, 0.4)} 0%, transparent 200px)`,
             }}
           >
             <ProvidersEditor

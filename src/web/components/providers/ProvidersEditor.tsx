@@ -1,4 +1,4 @@
-import React, { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useMemo } from "react";
 import {
   Card,
   Box,
@@ -19,7 +19,9 @@ import {
   ChevronRight,
   Trash2,
   Plus,
-  PackageOpen,
+  Search,
+  XCircle,
+  Server,
 } from "lucide-react";
 import { TRANSITIONS, DURATIONS, EASING } from "../../theme/motionTokens";
 import { radii } from "../../theme/designTokens";
@@ -78,10 +80,19 @@ function ProvidersEditorComponent({
   const [newModelStates, setNewModelStates] = useState<
     Record<string, { name: string; error: string | null }>
   >({});
+  const [providerSearch, setProviderSearch] = useState("");
 
   const handleToggleSection = useCallback((name: string) => {
     setCollapsedSections((prev) => ({ ...prev, [name]: !prev[name] }));
   }, []);
+
+  const normalizedProviderSearch = providerSearch.trim().toLowerCase();
+  const filteredProviders = useMemo(() => {
+    if (!normalizedProviderSearch) return providersList;
+    return providersList.filter((provider) =>
+      provider.name.toLowerCase().includes(normalizedProviderSearch)
+    );
+  }, [providersList, normalizedProviderSearch]);
 
   const handleCreateProvider = useCallback(async () => {
     try { validateProviderName(newProviderName); } catch (err: unknown) {
@@ -134,7 +145,19 @@ function ProvidersEditorComponent({
     setConfirmState({
       open: true, title: "Delete Provider", description,
       onConfirm: async () => {
-        try { await onDeleteProvider(providerName); } catch {}
+        try {
+          await onDeleteProvider(providerName);
+          setCollapsedSections((prev) => {
+            const next = { ...prev };
+            delete next[providerName];
+            return next;
+          });
+          setNewModelStates((prev) => {
+            const next = { ...prev };
+            delete next[providerName];
+            return next;
+          });
+        } catch {}
         setConfirmState((prev) => ({ ...prev, open: false }));
       },
     });
@@ -170,72 +193,189 @@ function ProvidersEditorComponent({
     >
       {error && <Alert severity="error" sx={{ mb: 0.5, fontSize: "0.8rem" }}>{error}</Alert>}
 
-      {/* Add Provider Form */}
+      {/* Sticky Toolbar: Search + Add Provider */}
       <Box
-        data-testid="provider-create-section"
         sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          bgcolor: alpha(theme.palette.background.default, isDark ? 0.2 : 0.35),
+          backdropFilter: "blur(8px)",
+          pb: 1.5,
+          pt: 0.5,
           display: "flex",
-          alignItems: "flex-start",
+          flexDirection: "column",
           gap: 1,
-          p: 1,
-          borderRadius: 2,
-          border: `1px solid ${alpha(providersColor, 0.16)}`,
-          bgcolor: softPaper,
-          transition: TRANSITIONS.control,
-          "&:focus-within": {
-            borderColor: alpha(providersColor, 0.38),
-            bgcolor: alpha(theme.palette.background.paper, isDark ? 0.86 : 0.96),
-            boxShadow: `0 0 0 3px ${alpha(providersColor, 0.08)}`,
-          },
         }}
       >
-        <TextField
-          size="small"
-          placeholder="New provider name…"
-          value={newProviderName}
-          onChange={(e) => { setNewProviderName(e.target.value); setNewProviderError(null); }}
-          onKeyDown={(e) => { if (e.key === "Enter" && newProviderName) handleCreateProvider(); }}
-          error={!!newProviderError}
-          helperText={newProviderError}
-          disabled={isCreatingProvider}
-          inputProps={{ "data-testid": "provider-create-input" }}
-          sx={{
-            flex: 1,
-            "& .MuiOutlinedInput-root": {
+        {/* Provider Search */}
+        {providersList.length > 0 && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              px: 1,
+              py: 0.625,
               borderRadius: 1.5,
-              bgcolor: alpha(theme.palette.background.default, 0.5),
-              "& fieldset": { borderColor: subtleBorder },
-              "&:hover fieldset": { borderColor: alpha(providersColor, 0.3) },
-              "&.Mui-focused fieldset": { borderColor: alpha(providersColor, 0.62) },
-            },
-            "& .MuiInputBase-input": { fontFamily: MONO_FONT, fontSize: "0.8rem" },
-          }}
-        />
-        <Button
-          variant="contained"
-          size="small"
-          onClick={handleCreateProvider}
-          disabled={!newProviderName || isCreatingProvider}
-          data-testid="provider-create-submit"
-          startIcon={isCreatingProvider ? <CircularProgress size={14} color="inherit" /> : <Plus size={14} />}
+              border: `1px solid ${alpha(providersColor, 0.12)}`,
+              bgcolor: softPaper,
+              transition: TRANSITIONS.control,
+              "&:focus-within": {
+                borderColor: alpha(providersColor, 0.35),
+                boxShadow: `0 0 0 3px ${alpha(providersColor, 0.06)}`,
+              },
+            }}
+          >
+            <Search size={14} color={alpha(theme.palette.text.secondary as string, 0.72)} />
+            <TextField
+              size="small"
+              placeholder="Filter providers…"
+              value={providerSearch}
+              onChange={(e) => setProviderSearch(e.target.value)}
+              fullWidth
+              variant="standard"
+              InputProps={{
+                disableUnderline: true,
+                endAdornment: normalizedProviderSearch ? (
+                  <IconButton
+                    size="small"
+                    onClick={() => setProviderSearch("")}
+                    sx={{ p: 0.25, color: "text.secondary", "&:hover": { color: "text.primary" } }}
+                  >
+                    <XCircle size={14} />
+                  </IconButton>
+                ) : null,
+              }}
+              inputProps={{
+                style: { fontFamily: MONO_FONT, fontSize: "0.78rem", padding: "4px 0" },
+              }}
+              sx={{
+                "& .MuiInputBase-root": {
+                  bgcolor: "transparent",
+                  "&::before, &::after": { display: "none" },
+                },
+              }}
+            />
+            {normalizedProviderSearch && (
+              <Typography
+                sx={{
+                  fontSize: "0.65rem",
+                  fontFamily: MONO_FONT,
+                  color: "text.secondary",
+                  whiteSpace: "nowrap",
+                  px: 0.5,
+                }}
+              >
+                {filteredProviders.length} / {providersList.length}
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {/* Add Provider Form */}
+        <Box
+          data-testid="provider-create-section"
           sx={{
-            bgcolor: providersColor,
-            "&:hover": { bgcolor: alpha(providersColor, 0.85) },
-            boxShadow: "none",
-            borderRadius: 1.5,
-            fontWeight: 600,
-            fontSize: "0.75rem",
-            whiteSpace: "nowrap",
-            minWidth: 86,
-            height: 40,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1,
+            p: 1,
+            borderRadius: 2,
+            border: `1px solid ${alpha(providersColor, 0.16)}`,
+            bgcolor: softPaper,
+            transition: TRANSITIONS.control,
+            "&:focus-within": {
+              borderColor: alpha(providersColor, 0.38),
+              bgcolor: alpha(theme.palette.background.paper, isDark ? 0.86 : 0.96),
+              boxShadow: `0 0 0 3px ${alpha(providersColor, 0.08)}`,
+            },
           }}
         >
-          Add
-        </Button>
+          <TextField
+            size="small"
+            placeholder="New provider name…"
+            value={newProviderName}
+            onChange={(e) => { setNewProviderName(e.target.value); setNewProviderError(null); }}
+            onKeyDown={(e) => { if (e.key === "Enter" && newProviderName) handleCreateProvider(); }}
+            error={!!newProviderError}
+            helperText={newProviderError}
+            disabled={isCreatingProvider}
+            inputProps={{ "data-testid": "provider-create-input" }}
+            sx={{
+              flex: 1,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 1.5,
+                bgcolor: alpha(theme.palette.background.default, 0.5),
+                "& fieldset": { borderColor: subtleBorder },
+                "&:hover fieldset": { borderColor: alpha(providersColor, 0.3) },
+                "&.Mui-focused fieldset": { borderColor: alpha(providersColor, 0.62) },
+              },
+              "& .MuiInputBase-input": { fontFamily: MONO_FONT, fontSize: "0.8rem" },
+            }}
+          />
+          <Button
+            variant="contained"
+            size="small"
+            onClick={handleCreateProvider}
+            disabled={!newProviderName || isCreatingProvider}
+            data-testid="provider-create-submit"
+            startIcon={isCreatingProvider ? <CircularProgress size={14} color="inherit" /> : <Plus size={14} />}
+            sx={{
+              bgcolor: providersColor,
+              "&:hover": { bgcolor: alpha(providersColor, 0.85) },
+              boxShadow: "none",
+              borderRadius: 1.5,
+              fontWeight: 600,
+              fontSize: "0.75rem",
+              whiteSpace: "nowrap",
+              minWidth: 86,
+              height: 40,
+            }}
+          >
+            Add
+          </Button>
+        </Box>
       </Box>
 
       {/* Empty state */}
       {providersList.length === 0 && (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 1.25,
+            py: 6,
+            color: "text.disabled",
+          }}
+        >
+          <Box
+            sx={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              bgcolor: alpha(providersColor, isDark ? 0.1 : 0.06),
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mb: 0.5,
+            }}
+          >
+            <Server size={24} strokeWidth={1.25} color={providersColor} />
+          </Box>
+          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.secondary" }}>
+            No providers yet
+          </Typography>
+          <Typography sx={{ fontSize: "0.75rem", color: "text.disabled", textAlign: "center", maxWidth: 260 }}>
+            Create a provider above to start adding AI models
+          </Typography>
+        </Box>
+      )}
+
+      {/* No search results */}
+      {providersList.length > 0 && filteredProviders.length === 0 && (
         <Box
           sx={{
             display: "flex",
@@ -247,18 +387,22 @@ function ProvidersEditorComponent({
             color: "text.disabled",
           }}
         >
-          <PackageOpen size={32} strokeWidth={1.25} />
+          <Search size={28} strokeWidth={1.25} />
           <Typography sx={{ fontSize: "0.8125rem", fontFamily: MONO_FONT }}>
-            No providers yet
+            No providers match "{providerSearch}"
           </Typography>
-          <Typography sx={{ fontSize: "0.75rem", color: "text.disabled" }}>
-            Add your first provider above
-          </Typography>
+          <Button
+            size="small"
+            onClick={() => setProviderSearch("")}
+            sx={{ color: providersColor, fontSize: "0.75rem", textTransform: "none" }}
+          >
+            Clear search
+          </Button>
         </Box>
       )}
 
       {/* Provider Sections */}
-      {providersList.map((provider) => {
+      {filteredProviders.map((provider) => {
         const collapsed = !!collapsedSections[provider.name];
         const modelState = newModelStates[provider.name] || { name: "", error: null };
 
@@ -271,11 +415,15 @@ function ProvidersEditorComponent({
               borderRadius: 2,
               backgroundImage: "none",
               bgcolor: softPaper,
-              boxShadow: collapsed ? "none" : `0 10px 28px ${alpha(theme.palette.common.black, isDark ? 0.22 : 0.05)}`,
-              border: `1px solid ${collapsed ? subtleBorder : alpha(providersColor, 0.16)}`,
+              boxShadow: collapsed
+                ? `0 1px 3px ${alpha(theme.palette.common.black, isDark ? 0.15 : 0.04)}`
+                : `0 8px 24px ${alpha(theme.palette.common.black, isDark ? 0.2 : 0.06)}`,
+              border: `1px solid ${collapsed ? subtleBorder : alpha(providersColor, 0.18)}`,
               "&:hover": {
-                borderColor: alpha(providersColor, 0.26),
-                boxShadow: `0 12px 32px ${alpha(theme.palette.common.black, isDark ? 0.26 : 0.07)}`,
+                borderColor: alpha(providersColor, 0.28),
+                boxShadow: collapsed
+                  ? `0 2px 6px ${alpha(theme.palette.common.black, isDark ? 0.2 : 0.06)}`
+                  : `0 10px 28px ${alpha(theme.palette.common.black, isDark ? 0.24 : 0.08)}`,
               },
             }}
             data-testid={`provider-section-${provider.name}`}
@@ -332,12 +480,12 @@ function ProvidersEditorComponent({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    width: 22,
-                    height: 22,
-                    borderRadius: 1,
-                    bgcolor: collapsed ? alpha(providersColor, 0.07) : alpha(providersColor, 0.12),
+                    width: 24,
+                    height: 24,
+                    borderRadius: 1.25,
+                    bgcolor: collapsed ? alpha(providersColor, 0.06) : alpha(providersColor, 0.14),
                     color: providersColor,
-                    border: `1px solid ${alpha(providersColor, collapsed ? 0.12 : 0.22)}`,
+                    border: `1px solid ${alpha(providersColor, collapsed ? 0.1 : 0.24)}`,
                     transition: TRANSITIONS.control,
                     "& svg": {
                       transition: `transform ${DURATIONS.NORMAL}ms ${EASING.EASE_OUT}`,
@@ -370,15 +518,15 @@ function ProvidersEditorComponent({
                   label={`${provider.models.length} model${provider.models.length !== 1 ? "s" : ""}`}
                   size="small"
                   sx={{
-                    fontSize: "0.6rem",
+                    fontSize: "0.625rem",
                     fontFamily: MONO_FONT,
-                    height: 18,
-                    bgcolor: collapsed ? alpha(theme.palette.text.primary, isDark ? 0.08 : 0.04) : alpha(providersColor, 0.1),
+                    height: 20,
+                    bgcolor: collapsed ? alpha(theme.palette.text.primary, isDark ? 0.08 : 0.04) : alpha(providersColor, 0.12),
                     color: collapsed ? "text.secondary" : providersColor,
-                    border: `1px solid ${alpha(collapsed ? theme.palette.text.secondary : providersColor, collapsed ? 0.1 : 0.12)}`,
+                    border: `1px solid ${alpha(collapsed ? theme.palette.text.secondary : providersColor, collapsed ? 0.1 : 0.18)}`,
                     fontWeight: 600,
                     transition: TRANSITIONS.control,
-                    "& .MuiChip-label": { px: 0.75 },
+                    "& .MuiChip-label": { px: 0.875 },
                   }}
                 />
               </ButtonBase>
@@ -389,9 +537,9 @@ function ProvidersEditorComponent({
                   onClick={() => handleDeleteProvider(provider.name)}
                   data-testid={`provider-delete-${provider.name}`}
                   sx={{
-                    color: alpha(theme.palette.text.secondary, 0.72),
+                    color: alpha(theme.palette.text.secondary, 0.5),
                     transition: TRANSITIONS.control,
-                    opacity: 0.72,
+                    p: 0.625,
                     "&:hover": { color: "error.main", bgcolor: alpha(theme.palette.error.main, 0.08) },
                   }}
                 >
@@ -444,8 +592,8 @@ function ProvidersEditorComponent({
                         mx: 1,
                         mt: modelIndex === 0 ? 1 : 0.5,
                         px: 1.25,
-                        py: 0.75,
-                        minHeight: 38,
+                        py: 0.625,
+                        minHeight: 36,
                         borderRadius: 1.5,
                         border: `1px solid ${quietBorder}`,
                         bgcolor: alpha(theme.palette.background.paper, 0.72),
@@ -456,11 +604,6 @@ function ProvidersEditorComponent({
                         "&:hover": {
                           borderColor: alpha(providersColor, 0.22),
                           bgcolor: alpha(theme.palette.background.paper, 0.96),
-                        },
-                        "&:hover .model-actions": { opacity: 1 },
-                        "& .model-actions": {
-                          opacity: 0.38,
-                          transition: `opacity ${DURATIONS.FAST}ms ${EASING.EASE_OUT}`,
                         },
                       }}
                     >
@@ -481,23 +624,22 @@ function ProvidersEditorComponent({
                         {modelName}
                       </Typography>
 
-                      {/* Delete action */}
-                      <Stack direction="row" spacing={0.25} alignItems="center" className="model-actions">
-                        <Tooltip title="Delete model">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteModel(provider.name, modelName)}
-                            data-testid={`model-delete-${provider.name}-${modelName}`}
-                            sx={{
-                              color: "text.secondary",
-                              transition: TRANSITIONS.control,
-                              "&:hover": { color: "error.main", bgcolor: alpha(theme.palette.error.main, 0.08) },
-                            }}
-                          >
-                            <Trash2 size={13} />
-                          </IconButton>
-                        </Tooltip>
-                      </Stack>
+                      {/* Delete action — always visible */}
+                      <Tooltip title="Delete model">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteModel(provider.name, modelName)}
+                          data-testid={`model-delete-${provider.name}-${modelName}`}
+                          sx={{
+                            color: alpha(theme.palette.text.secondary, 0.6),
+                            transition: TRANSITIONS.control,
+                            p: 0.375,
+                            "&:hover": { color: "error.main", bgcolor: alpha(theme.palette.error.main, 0.08) },
+                          }}
+                        >
+                          <Trash2 size={13} />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   );
                 })}

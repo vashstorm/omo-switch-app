@@ -73,10 +73,10 @@ describe("ProviderActivationMenu", () => {
     });
 
     const switches = screen.getAllByRole("switch");
-    // Providers are sorted alphabetically: anthropic, google, openai
-    expect(switches[0]).not.toBeChecked(); // anthropic (disabled)
-    expect(switches[1]).toBeChecked(); // google (enabled)
-    expect(switches[2]).toBeChecked(); // openai (enabled)
+    // Providers are sorted: enabled first, then alphabetically: google, openai, anthropic
+    expect(switches[0]).toBeChecked(); // google (enabled)
+    expect(switches[1]).toBeChecked(); // openai (enabled)
+    expect(switches[2]).not.toBeChecked(); // anthropic (disabled)
   });
 
   test("calls updateDisabledProviders on toggle to disable", async () => {
@@ -102,7 +102,7 @@ describe("ProviderActivationMenu", () => {
     });
 
     const switches = screen.getAllByRole("switch");
-    // Providers are sorted: anthropic, google, openai
+    // Providers are sorted: enabled first, then alphabetically: anthropic, google, openai
     expect(switches[0]).toBeChecked(); // anthropic (enabled)
 
     fireEvent.click(switches[0]);
@@ -133,13 +133,14 @@ describe("ProviderActivationMenu", () => {
     });
 
     const switches = screen.getAllByRole("switch");
-    // Providers are sorted: anthropic, google, openai
-    expect(switches[0]).not.toBeChecked(); // anthropic (disabled)
+    // Providers are sorted: enabled first, then alphabetically
+    // google is enabled, anthropic and openai are disabled
+    expect(switches[0]).toBeChecked(); // google (enabled)
 
     fireEvent.click(switches[0]);
 
-    // Re-enable anthropic -> remove from disabled list, leaving only openai
-    expect(mockUpdate).toHaveBeenCalledWith("test-profile", ["openai"]);
+    // Disable google -> add to disabled list
+    expect(mockUpdate).toHaveBeenCalledWith("test-profile", ["openai", "anthropic", "google"]);
   });
 
   test("excludes None provider case-insensitively", async () => {

@@ -1,7 +1,6 @@
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, test, vi, afterEach } from "vitest";
-import React from "react";
 import { ProvidersEditor } from "../../src/web/components/providers/ProvidersEditor";
 import type { ProviderEntry } from "../../src/web/hooks/useProviders";
 
@@ -58,7 +57,7 @@ describe("ProvidersEditor", () => {
   });
 
   test("shows loading state", () => {
-    render(<ProvidersEditor {...defaultMockProps} loading={true} />);
+    render(<ProvidersEditor {...defaultMockProps} providersList={[]} loading={true} />);
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
   });
 
@@ -100,7 +99,7 @@ describe("ProvidersEditor", () => {
     expect(screen.getByText(/Invalid provider name/)).toBeInTheDocument();
   });
 
-  test("creates model with valid name and maxTokens", async () => {
+  test("creates model with valid name", async () => {
     const props = { ...defaultMockProps };
     render(<ProvidersEditor {...props} />);
 
@@ -112,7 +111,6 @@ describe("ProvidersEditor", () => {
     await waitFor(() => {
       expect(props.onCreateModel).toHaveBeenCalledWith("openai", {
         name: "gpt-4o",
-        maxTokens: 64000,
       });
     });
   });
@@ -181,62 +179,6 @@ describe("ProvidersEditor", () => {
 
     await waitFor(() => {
       expect(props.onDeleteProvider).not.toHaveBeenCalled();
-    });
-  });
-
-  test("updates maxTokens for model", async () => {
-    const props = { ...defaultMockProps };
-    render(<ProvidersEditor {...props} />);
-
-    fireEvent.click(screen.getByTestId("toggle-provider-openai"));
-
-    const maxTokensBtn = screen.getByTestId("model-max-tokens-openai-gpt-4");
-    fireEvent.click(maxTokensBtn);
-
-    const input = screen.getByTestId("model-max-tokens-openai-gpt-4");
-    fireEvent.input(input, { target: { value: "16000" } });
-
-    fireEvent.click(screen.getByTestId("model-save-openai-gpt-4"));
-
-    await waitFor(() => {
-      expect(props.onUpdateModel).toHaveBeenCalledWith("openai", "gpt-4", { maxTokens: 16000 });
-    });
-  });
-
-  test("rejects negative maxTokens", async () => {
-    const props = { ...defaultMockProps };
-    render(<ProvidersEditor {...props} />);
-
-    fireEvent.click(screen.getByTestId("toggle-provider-openai"));
-
-    const maxTokensBtn = screen.getByTestId("model-max-tokens-openai-gpt-4");
-    fireEvent.click(maxTokensBtn);
-
-    const input = screen.getByTestId("model-max-tokens-openai-gpt-4");
-    fireEvent.input(input, { target: { value: "-100" } });
-
-    fireEvent.click(screen.getByTestId("model-save-openai-gpt-4"));
-
-    await waitFor(() => {
-      expect(props.onUpdateModel).not.toHaveBeenCalled();
-    });
-  });
-
-  test("creates model with custom maxTokens", async () => {
-    const props = { ...defaultMockProps };
-    render(<ProvidersEditor {...props} />);
-
-    fireEvent.click(screen.getByTestId("toggle-provider-openai"));
-
-    typeInField("model-create-input-openai", "new-model");
-    typeInField("model-max-tokens-openai-new", "32000");
-    fireEvent.click(screen.getByTestId("model-create-submit-openai"));
-
-    await waitFor(() => {
-      expect(props.onCreateModel).toHaveBeenCalledWith("openai", {
-        name: "new-model",
-        maxTokens: 32000,
-      });
     });
   });
 });
