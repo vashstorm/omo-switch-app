@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useState, useCallback, useMemo } from "react";
 import { Box, Drawer, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Typography, IconButton, useMediaQuery, useTheme } from "@mui/material";
-import { X, RotateCcw, Save, Bot, Tag } from "lucide-react";
+import { X, RotateCcw, Save, Bot, Tag, Settings2 } from "lucide-react";
 import { alpha } from "@mui/material/styles";
 import { keyframes } from "@mui/system";
 import { AppHeader } from "./shell/AppHeader";
@@ -52,6 +52,7 @@ interface AppShellProps {
   onToggleMisc?: () => void;
   onCreateAgent?: (id: string) => void;
   onCreateCategory?: (id: string) => void;
+  onOpenMiscDialog?: () => void;
   respectsMotion?: boolean;
   isSaving?: boolean;
   saveSuccess?: boolean;
@@ -109,6 +110,7 @@ export function AppShell({
   onToggleMisc,
   onCreateAgent,
   onCreateCategory,
+  onOpenMiscDialog,
   respectsMotion = true,
   isSaving = false,
   saveSuccess = false,
@@ -324,6 +326,7 @@ export function AppShell({
                   }}
                   onOpenAgentDialog={handleOpenAgentDialog}
                   onOpenCategoryDialog={handleOpenCategoryDialog}
+                  onOpenMiscDialog={onOpenMiscDialog}
                   variant="mobile"
                   onCloseMobile={closeNav}
                 />
@@ -391,6 +394,7 @@ export function AppShell({
               }}
               onOpenAgentDialog={handleOpenAgentDialog}
               onOpenCategoryDialog={handleOpenCategoryDialog}
+              onOpenMiscDialog={onOpenMiscDialog}
               variant="desktop"
             />
           </Box>
@@ -485,6 +489,12 @@ export function AppShell({
                 collapsed={miscCollapsed ?? false}
                 onToggle={onToggleMisc ?? (() => {})}
                 testId="misc-section"
+                emptyState={miscSectionNames.length === 0 ? {
+                  icon: <Settings2 style={{ width: 24, height: 24 }} />,
+                  title: "No misc settings",
+                  description: "Additional profile settings will appear here when present.",
+                } : undefined}
+                onAddClick={miscSectionNames.length === 0 ? onOpenMiscDialog : undefined}
               >
                 {miscSection ?? (
                   <Typography color="text.secondary">Misc content placeholder</Typography>

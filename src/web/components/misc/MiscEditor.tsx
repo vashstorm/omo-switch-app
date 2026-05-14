@@ -1,26 +1,53 @@
-import React, { memo, useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { 
-  Card, Box, Typography, Collapse, 
-  ButtonBase, Chip, Paper, Checkbox, TextField
+import React, {
+  forwardRef,
+  memo,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Card, CardContent, Box, Typography, Collapse,
+  ButtonBase, Chip, Paper, Checkbox, TextField,
+  Button, IconButton, Tooltip, Alert, ToggleButton, ToggleButtonGroup,
+  Dialog, DialogTitle, DialogContent, DialogActions
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { TRANSITIONS } from "../../theme/motionTokens";
 import { radii, lightTokens, darkTokens } from "../../theme/designTokens";
 import { MONO_FONT } from "../../theme/typography";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 
 interface MiscEditorProps {
   miscData?: Record<string, unknown>;
   onChange?: (nextMiscData: Record<string, unknown>) => void;
+  onDirty?: () => void;
   globalCollapseKey?: number;
   globalExpandKey?: number;
   expandTargetId?: string | null;
 }
 
-function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpandKey, expandTargetId }: MiscEditorProps) {
+export interface MiscEditorHandle {
+  openCreateDialog: () => void;
+  validateDrafts: () => { valid: boolean; nextMiscData: Record<string, unknown> };
+}
+
+function MiscEditorComponent(
+  { miscData, onChange, onDirty, globalCollapseKey, globalExpandKey, expandTargetId }: MiscEditorProps,
+  ref: React.Ref<MiscEditorHandle>,
+) {
   const editable = typeof onChange === "function";
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
   const [draftErrors, setDraftErrors] = useState<Record<string, string>>({});
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [createValue, setCreateValue] = useState("{\n  \"enabled\": true\n}");
+  const [createTemplate, setCreateTemplate] = useState("object");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [pendingDeleteName, setPendingDeleteName] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
     const collapseKey = globalCollapseKey ?? 0;
     const expandKey = globalExpandKey ?? 0;
@@ -72,10 +99,70 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
     setCollapsedSections((prev: Record<string, boolean>) => ({ ...prev, [sectionName]: !prev[sectionName] }));
   };
 
+  const clearSectionDrafts = (sectionName: string) => {
+    const shouldRemove = (draftKey: string) =>
+      draftKey === `section:${sectionName}` || draftKey.startsWith(`field:${sectionName}:`);
+
+    setDraftValues((prev) => {
+      const next = { ...prev };
+      for (const draftKey of Object.keys(next)) {
+        if (shouldRemove(draftKey)) delete next[draftKey];
+      }
+      return next;
+    });
+
+    setDraftErrors((prev) => {
+      const next = { ...prev };
+      for (const draftKey of Object.keys(next)) {
+        if (shouldRemove(draftKey)) delete next[draftKey];
+      }
+      return next;
+    });
+  };
+
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const tokens = isDark ? darkTokens : lightTokens;
   const miscColor = (theme as any).sectionColors?.misc ?? tokens.colors.section.miscPrimary;
+
+  const getValueKind = (value: unknown): string => {
+    if (value === null) return "null";
+    if (Array.isArray(value)) return "array";
+    return typeof value;
+  };
+
+  const getValueMetric = (value: unknown): string => {
+    if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? "" : "s"}`;
+    if (value && typeof value === "object") {
+      const count = Object.keys(value as Record<string, unknown>).length;
+      return `${count} field${count === 1 ? "" : "s"}`;
+    }
+    if (typeof value === "string") return `${value.length} char${value.length === 1 ? "" : "s"}`;
+    if (typeof value === "boolean") return value ? "true" : "false";
+    if (typeof value === "number") return Number.isInteger(value) ? "integer" : "decimal";
+    return "value";
+  };
+
+  const getValuePreview = (value: unknown): string => {
+    if (value === null) return "null";
+    if (typeof value === "boolean") return value ? "true" : "false";
+    if (typeof value === "number") return String(value);
+    if (typeof value === "string") return value || "\"\"";
+    if (Array.isArray(value)) {
+      return value.length === 0 ? "[]" : value.slice(0, 3).map((item) => {
+        if (item === null) return "null";
+        if (typeof item === "object") return Array.isArray(item) ? "array" : "object";
+        return String(item);
+      }).join(", ");
+    }
+
+    if (value && typeof value === "object") {
+      const keys = Object.keys(value as Record<string, unknown>);
+      return keys.length === 0 ? "{}" : keys.slice(0, 4).join(", ");
+    }
+
+    return "";
+  };
 
   const isPrimitiveValue = (value: unknown): boolean => {
     return (
@@ -109,6 +196,106 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
     });
   };
 
+  const resetCreateDialog = () => {
+    setCreateName("");
+    setCreateTemplate("object");
+    setCreateValue("{\n  \"enabled\": true\n}");
+    setCreateError(null);
+  };
+
+  const applyCreateTemplate = (template: string) => {
+    setCreateTemplate(template);
+    setCreateError(null);
+    if (template === "object") {
+      setCreateValue("{\n  \"enabled\": true\n}");
+      return;
+    }
+    if (template === "array") {
+      setCreateValue("[\n  \"item\"\n]");
+      return;
+    }
+    if (template === "boolean") {
+      setCreateValue("true");
+      return;
+    }
+    if (template === "string") {
+      setCreateValue("\"value\"");
+    }
+  };
+
+  const handleOpenCreateDialog = () => {
+    resetCreateDialog();
+    setCreateDialogOpen(true);
+  };
+
+  const handleCloseCreateDialog = () => {
+    setCreateDialogOpen(false);
+    resetCreateDialog();
+  };
+
+  const handleCreateSubmit = (event?: React.FormEvent) => {
+    event?.preventDefault();
+    if (!onChange) return;
+
+    const sectionName = createName.trim();
+    if (!sectionName) {
+      setCreateError("Section name is required.");
+      return;
+    }
+
+    if (!/^[A-Za-z0-9_.-]+$/.test(sectionName)) {
+      setCreateError("Use letters, numbers, underscore, dash, or dot.");
+      return;
+    }
+
+    if (Object.hasOwn(miscData ?? {}, sectionName)) {
+      setCreateError(`"${sectionName}" already exists.`);
+      return;
+    }
+
+    let nextValue: unknown;
+    try {
+      nextValue = JSON.parse(createValue);
+    } catch {
+      setCreateError("Initial value must be valid JSON.");
+      return;
+    }
+
+    onChange({
+      ...(miscData ?? {}),
+      [sectionName]: nextValue,
+    });
+    onDirty?.();
+    setCollapsedSections((prev) => ({ ...prev, [sectionName]: false }));
+    setCreateDialogOpen(false);
+    resetCreateDialog();
+  };
+
+  const handleDeleteIntent = (sectionName: string) => {
+    setPendingDeleteName(sectionName);
+  };
+
+  const handleDeleteCancel = () => {
+    setPendingDeleteName(null);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!onChange || !pendingDeleteName) return;
+
+    clearSectionDrafts(pendingDeleteName);
+    onChange({
+      ...(miscData ?? {}),
+      [pendingDeleteName]: null,
+    });
+    onDirty?.();
+    setCollapsedSections((prev) => {
+      const next = { ...prev };
+      delete next[pendingDeleteName];
+      return next;
+    });
+    setPendingDeleteName(null);
+  };
+
   const updateField = (sectionName: string, fieldName: string, nextValue: unknown) => {
     const sectionData = getSectionData(sectionName) ?? {};
     updateSection(sectionName, {
@@ -126,6 +313,7 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
   };
 
   const setDraftValue = (draftKey: string, value: string) => {
+    onDirty?.();
     setDraftValues((prev) => ({ ...prev, [draftKey]: value }));
     setDraftErrors((prev) => {
       if (!prev[draftKey]) return prev;
@@ -149,6 +337,101 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
       return next;
     });
   };
+
+  const getDraftSourceValue = (draftKey: string): unknown => {
+    const [kind, sectionName, fieldName] = draftKey.split(":");
+    if (kind === "section" && sectionName) {
+      return getSectionValue(sectionName);
+    }
+    if (kind === "field" && sectionName && fieldName) {
+      return getSectionData(sectionName)?.[fieldName];
+    }
+    return undefined;
+  };
+
+  const applyDraftValue = (
+    currentMiscData: Record<string, unknown>,
+    draftKey: string,
+    parsedValue: unknown,
+  ): Record<string, unknown> => {
+    const [kind, sectionName, fieldName] = draftKey.split(":");
+    if (kind === "section" && sectionName) {
+      return {
+        ...currentMiscData,
+        [sectionName]: parsedValue,
+      };
+    }
+
+    if (kind === "field" && sectionName && fieldName) {
+      const sectionData = currentMiscData[sectionName];
+      const nextSectionData =
+        sectionData && typeof sectionData === "object" && !Array.isArray(sectionData)
+          ? { ...(sectionData as Record<string, unknown>) }
+          : {};
+      nextSectionData[fieldName] = parsedValue;
+      return {
+        ...currentMiscData,
+        [sectionName]: nextSectionData,
+      };
+    }
+
+    return currentMiscData;
+  };
+
+  useImperativeHandle(ref, () => ({
+    openCreateDialog: handleOpenCreateDialog,
+    validateDrafts: () => {
+      let nextMiscData = { ...(miscData ?? {}) };
+      const nextErrors: Record<string, string> = {};
+
+      for (const [draftKey, rawValue] of Object.entries(draftValues)) {
+        const sourceValue = getDraftSourceValue(draftKey);
+        const trimmed = rawValue.trim();
+
+        if (typeof sourceValue === "number") {
+          if (trimmed === "") {
+            nextErrors[draftKey] = "Number is required";
+            continue;
+          }
+
+          const nextValue = Number(trimmed);
+          if (!Number.isFinite(nextValue)) {
+            nextErrors[draftKey] = "Invalid number";
+            continue;
+          }
+
+          nextMiscData = applyDraftValue(nextMiscData, draftKey, nextValue);
+          continue;
+        }
+
+        try {
+          nextMiscData = applyDraftValue(nextMiscData, draftKey, JSON.parse(rawValue));
+        } catch {
+          nextErrors[draftKey] = "Invalid JSON";
+        }
+      }
+
+      setDraftErrors(nextErrors);
+
+      if (Object.keys(nextErrors).length > 0) {
+        const erroredSectionNames = Object.keys(nextErrors)
+          .map((draftKey) => draftKey.split(":")[1])
+          .filter((sectionName): sectionName is string => !!sectionName);
+        setCollapsedSections((prev) => {
+          if (erroredSectionNames.length === 0) return prev;
+          const next = { ...prev };
+          erroredSectionNames.forEach((sectionName) => {
+            next[sectionName] = false;
+          });
+          return next;
+        });
+        return { valid: false, nextMiscData };
+      }
+
+      setDraftValues({});
+      return { valid: true, nextMiscData };
+    },
+  }), [draftValues, miscData]);
 
   const commitNumberDraft = (draftKey: string, rawValue: string, commit: (nextValue: number) => void) => {
     const trimmed = rawValue.trim();
@@ -180,11 +463,72 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
   const textFieldSx = {
     flex: 1,
     minWidth: 0,
+    "& .MuiOutlinedInput-root": {
+      bgcolor: tokens.colors.neutral.surface,
+      borderRadius: `${tokens.radii.control}px`,
+      transition: TRANSITIONS.control,
+      "&:hover .MuiOutlinedInput-notchedOutline": {
+        borderColor: alpha(miscColor, 0.32),
+      },
+      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+        borderColor: miscColor,
+        borderWidth: 1,
+      },
+    },
     "& .MuiInputBase-input": {
       fontFamily: MONO_FONT,
       fontSize: "0.8rem",
     },
+    "& .MuiFormHelperText-root": {
+      ml: 0,
+      minHeight: 18,
+    },
   };
+
+  const fieldRowSx = (rowIndex = 0, isComplexValue = false) => ({
+    px: { xs: 1.5, sm: 2 },
+    py: isComplexValue ? 1.5 : 1.15,
+    borderTop: rowIndex === 0 ? "none" : `1px solid ${alpha(theme.palette.divider, 0.55)}`,
+    display: "grid",
+    gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "minmax(130px, 0.34fr) minmax(0, 1fr)" },
+    alignItems: isComplexValue ? "flex-start" : "center",
+    gap: { xs: 0.75, sm: 2 },
+    bgcolor: rowIndex % 2 === 0 ? "transparent" : alpha(miscColor, isDark ? 0.035 : 0.025),
+  });
+
+  const fieldLabelSx = (isComplexValue = false) => ({
+    fontFamily: MONO_FONT,
+    fontWeight: 600,
+    color: "text.primary",
+    minWidth: 0,
+    fontSize: "0.75rem",
+    letterSpacing: 0,
+    pt: { xs: 0, sm: isComplexValue ? 0.75 : 0 },
+    overflowWrap: "anywhere",
+  });
+
+  const renderValueMeta = (value: unknown): React.ReactNode => (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", minWidth: 0 }}>
+      <Chip
+        label={getValueKind(value)}
+        size="small"
+        variant="outlined"
+        sx={{
+          height: 22,
+          borderRadius: 999,
+          borderColor: alpha(miscColor, 0.22),
+          bgcolor: alpha(miscColor, isDark ? 0.08 : 0.045),
+          color: "text.secondary",
+          fontFamily: MONO_FONT,
+          fontSize: "0.6875rem",
+          "& .MuiChip-label": { px: 0.9 },
+        }}
+      />
+      <Typography sx={{ color: "text.secondary", fontSize: "0.75rem", lineHeight: 1.3 }}>
+        {getValueMetric(value)}
+      </Typography>
+    </Box>
+  );
 
   const renderBooleanValue = (value: boolean): React.ReactNode => (
     <Typography
@@ -275,31 +619,13 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
     const isComplexValue = Array.isArray(value) || (typeof value === "object" && value !== null);
     return (
       <Box
-        sx={{
-          px: 2,
-          py: isComplexValue ? 1.5 : 1,
-          borderTop: "1px solid",
-          borderColor: alpha(theme.palette.divider, 0.5),
-          display: "flex",
-          alignItems: isComplexValue ? "flex-start" : "center",
-          gap: 2,
-        }}
+        sx={fieldRowSx(0, isComplexValue)}
         data-testid={`misc-primitive-${sectionName}`}
       >
-        <Typography
-          sx={{
-            fontFamily: MONO_FONT,
-            fontWeight: 500,
-            color: "text.primary",
-            minWidth: 120,
-            fontSize: "0.75rem",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            pt: isComplexValue ? 0.75 : 0,
-          }}
-        >
-          value:
-        </Typography>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.45, minWidth: 0 }}>
+          <Typography sx={fieldLabelSx(isComplexValue)}>value:</Typography>
+          {renderValueMeta(value)}
+        </Box>
         {renderEditableControl(
           `section:${sectionName}`,
           `misc-${sectionName}-value`,
@@ -320,30 +646,13 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
 
     return (
       <Box
-        sx={{
-          px: 2,
-          py: isComplexValue ? 1.5 : 1,
-          borderTop: "1px solid",
-          borderColor: alpha(theme.palette.divider, 0.5),
-          display: "flex",
-          alignItems: isComplexValue ? "flex-start" : "center",
-          gap: 2,
-        }}
+        sx={fieldRowSx(0, isComplexValue)}
         data-testid={`misc-primitive-${sectionName}`}
       >
-        <Typography
-          sx={{
-            fontFamily: MONO_FONT,
-            fontWeight: 500,
-            color: "text.primary",
-            minWidth: 120,
-            fontSize: "0.75rem",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-          }}
-        >
-          value:
-        </Typography>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.45, minWidth: 0 }}>
+          <Typography sx={fieldLabelSx(isComplexValue)}>value:</Typography>
+          {renderValueMeta(value)}
+        </Box>
         {isBool ? (
           renderBooleanValue(value as boolean)
         ) : (
@@ -353,10 +662,11 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
               fontFamily: MONO_FONT,
               fontSize: "0.8rem",
               flex: 1,
-              bgcolor: alpha(theme.palette.action.hover, 0.4),
+              bgcolor: alpha(theme.palette.action.hover, isDark ? 0.22 : 0.35),
+              border: `1px solid ${alpha(theme.palette.divider, 0.4)}`,
               px: 1,
-              py: 0.2,
-              borderRadius: 1,
+              py: 0.45,
+              borderRadius: `${tokens.radii.control - 2}px`,
               wordBreak: "break-word",
             }}
           >
@@ -377,10 +687,9 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
     return (
       <Box
         sx={{
-          px: 2,
+          px: { xs: 1.5, sm: 2 },
           py: 1.5,
-          borderTop: "1px solid",
-          borderColor: alpha(theme.palette.divider, 0.5),
+          borderTop: `1px solid ${alpha(theme.palette.divider, 0.55)}`,
           display: "flex",
           flexDirection: "column",
           gap: 1,
@@ -390,11 +699,10 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
         <Typography
           sx={{
             fontFamily: MONO_FONT,
-            fontWeight: 500,
+            fontWeight: 600,
             color: "text.primary",
             fontSize: "0.75rem",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
+            letterSpacing: 0,
           }}
         >
           value: Array ({value.length})
@@ -420,7 +728,7 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
           <Paper
             sx={{
               border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-              borderRadius: 1.5,
+              borderRadius: `${tokens.radii.control}px`,
               px: 2,
               py: 1.5,
               bgcolor: alpha(theme.palette.background.default, 0.5),
@@ -497,27 +805,11 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
     return (
       <Box
         key={fieldName}
-        sx={{
-          px: 2,
-          py: isComplexValue ? 1.5 : 1,
-          borderTop: rowIndex === 0 ? "none" : `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-          display: "flex",
-          alignItems: isComplexValue ? "flex-start" : "center",
-          gap: 2,
-          bgcolor: rowIndex % 2 === 0 ? "transparent" : alpha(miscColor, 0.02),
-        }}
+        sx={fieldRowSx(rowIndex, isComplexValue)}
         data-testid={`misc-kv-${sectionName}-${fieldName}-readonly`}
       >
         <Typography
-          sx={{
-            fontFamily: MONO_FONT,
-            fontWeight: 500,
-            color: "text.primary",
-            minWidth: 160,
-            fontSize: "0.75rem",
-            letterSpacing: "0.02em",
-            pt: isComplexValue ? 0.25 : 0,
-          }}
+          sx={fieldLabelSx(isComplexValue)}
         >
           {fieldName}:
         </Typography>
@@ -549,7 +841,7 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
             <Paper
               sx={{
                 border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-                borderRadius: 1.5,
+                borderRadius: `${tokens.radii.control}px`,
                 px: 1.5,
                 py: 1,
                 bgcolor: alpha(theme.palette.background.default, 0.5),
@@ -582,29 +874,13 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
     return (
       <Box
         key={fieldName}
-        sx={{
-          px: 2,
-          py: isComplexValue ? 1.5 : 1,
-          borderTop: rowIndex === 0 ? "none" : `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-          display: "flex",
-          alignItems: isComplexValue ? "flex-start" : "center",
-          gap: 2,
-          bgcolor: rowIndex % 2 === 0 ? "transparent" : alpha(miscColor, 0.02),
-        }}
+        sx={fieldRowSx(rowIndex, isComplexValue)}
         data-testid={`misc-kv-${sectionName}-${fieldName}`}
       >
         <Typography
           component="label"
           htmlFor={`misc-${sectionName}-${fieldName}`}
-          sx={{
-            fontFamily: MONO_FONT,
-            fontWeight: 500,
-            color: "text.primary",
-            minWidth: 160,
-            fontSize: "0.75rem",
-            letterSpacing: "0.02em",
-            pt: isComplexValue ? 0.75 : 0,
-          }}
+          sx={fieldLabelSx(isComplexValue)}
         >
           {fieldName}:
         </Typography>
@@ -663,6 +939,8 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
     >
       {sectionNames.map((sectionName) => {
         const collapsed = !!collapsedSections[sectionName];
+        const sectionValue = getSectionValue(sectionName);
+        const preview = getValuePreview(sectionValue);
 
         return (
           <Card
@@ -670,11 +948,13 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
             sx={{
               overflow: "hidden",
               transition: TRANSITIONS.control,
-              bgcolor: tokens.colors.neutral.elevatedSurface,
-              borderColor: collapsed ? tokens.colors.neutral.divider : alpha(miscColor, 0.24),
-              boxShadow: "none",
+              bgcolor: isDark ? tokens.colors.neutral.elevatedSurface : "#f7f3ed",
+              borderColor: collapsed ? tokens.colors.neutral.divider : alpha(miscColor, 0.22),
+              boxShadow: isDark ? "none" : "0 10px 28px rgba(20, 20, 19, 0.035)",
               "&:hover": {
                 borderColor: alpha(miscColor, 0.38),
+                bgcolor: isDark ? alpha(miscColor, 0.035) : "#f5efe7",
+                boxShadow: isDark ? "none" : "0 14px 34px rgba(20, 20, 19, 0.05)",
               }
             }}
             data-testid={`misc-section-${sectionName}`}
@@ -682,20 +962,25 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
           >
             <Box
               sx={{
-                height: 3,
-                bgcolor: collapsed ? "transparent" : alpha(miscColor, 0.85),
+                height: 2,
+                mx: 2,
+                borderRadius: "0 0 999px 999px",
+                bgcolor: collapsed ? "transparent" : alpha(miscColor, isDark ? 0.68 : 0.5),
                 transition: TRANSITIONS.control,
-                opacity: 0.85,
+                opacity: collapsed ? 0 : 1,
               }}
             />
             <Box
               sx={{
-                py: 0.75,
-                px: 1.25,
-                bgcolor: collapsed ? "transparent" : alpha(miscColor, isDark ? 0.1 : 0.06),
+                minHeight: 58,
+                py: 0.9,
+                px: 1.5,
+                bgcolor: collapsed ? "transparent" : alpha(miscColor, isDark ? 0.08 : 0.045),
                 display: "flex",
                 alignItems: "center",
                 gap: 0.5,
+                borderBottom: "1px solid",
+                borderColor: collapsed ? "transparent" : alpha(theme.palette.divider, isDark ? 0.46 : 0.7),
                 transition: TRANSITIONS.control,
               }}
             >
@@ -708,10 +993,11 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
                   sx={{
                     display: "flex",
                     alignItems: "center",
-                  gap: 1.25,
-                  flex: 1,
-                  justifyContent: "flex-start",
-                  borderRadius: `${tokens.radii.control}px`,
+                    gap: 1.25,
+                    flex: 1,
+                    minWidth: 0,
+                    justifyContent: "flex-start",
+                    borderRadius: `${tokens.radii.control}px`,
                     p: "6px 8px",
                     "&:hover": { bgcolor: alpha(miscColor, isDark ? 0.14 : 0.08) },
                     "&:focus-visible": {
@@ -729,8 +1015,9 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
                     height: 24,
                     borderRadius: `${tokens.radii.control - 2}px`,
                     bgcolor: collapsed ? alpha(miscColor, 0.12) : miscColor,
-                    color: collapsed ? "text.secondary" : "common.white",
+                    color: collapsed ? "text.secondary" : tokens.colors.neutral.surface,
                     transition: TRANSITIONS.control,
+                    flexShrink: 0,
                   }}
                 >
                   {collapsed ? (
@@ -742,37 +1029,200 @@ function MiscEditorComponent({ miscData, onChange, globalCollapseKey, globalExpa
                 <Typography
                   component="h4"
                   sx={{
-                    fontSize: "0.8125rem",
-                    fontWeight: 500,
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
                     fontFamily: MONO_FONT,
-                    color: "text.primary",
+                    color: collapsed ? "text.primary" : miscColor,
                     letterSpacing: 0,
                     transition: TRANSITIONS.control,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {sectionName}
                 </Typography>
+                {renderValueMeta(sectionValue)}
+                {preview && (
+                  <Typography
+                    sx={{
+                      display: { xs: "none", md: "block" },
+                      color: "text.secondary",
+                      fontFamily: MONO_FONT,
+                      fontSize: "0.75rem",
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      maxWidth: 300,
+                    }}
+                  >
+                    {preview}
+                  </Typography>
+                )}
               </ButtonBase>
+              {editable && (
+                <Tooltip title="Delete setting">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDeleteIntent(sectionName)}
+                    data-testid={`delete-misc-${sectionName}`}
+                    aria-label={`Delete misc section ${sectionName}`}
+                    sx={{
+                      color: "text.disabled",
+                      p: 0.5,
+                      flexShrink: 0,
+                      "&:hover": {
+                        color: "error.main",
+                        bgcolor: alpha(theme.palette.error.main, 0.08),
+                      },
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Box>
 
             <Collapse in={!collapsed} unmountOnExit>
-               <Box 
-                 id={`misc-body-${sectionName}`} 
-                 sx={{ 
-                    borderTop: `1px solid ${alpha(miscColor, 0.2)}`,
-                   borderBottomLeftRadius: radii.card,
-                   borderBottomRightRadius: radii.card,
-                   bgcolor: alpha(miscColor, 0.01),
-                 }}
-               >
-                 {renderSectionContent(sectionName)}
-               </Box>
+              <CardContent
+                id={`misc-body-${sectionName}`}
+                sx={{
+                  p: 0,
+                  borderBottomLeftRadius: radii.card,
+                  borderBottomRightRadius: radii.card,
+                  bgcolor: isDark ? alpha(theme.palette.common.white, 0.015) : "#fbfaf7",
+                  "&:last-child": { pb: 0 },
+                }}
+              >
+                {renderSectionContent(sectionName)}
+              </CardContent>
             </Collapse>
           </Card>
         );
       })}
+
+      <Dialog
+        open={createDialogOpen}
+        onClose={handleCloseCreateDialog}
+        data-testid="misc-create-dialog"
+        aria-labelledby="create-misc-title"
+        maxWidth="xs"
+        fullWidth
+      >
+        <Box component="form" onSubmit={handleCreateSubmit}>
+          <DialogTitle id="create-misc-title">Create New Setting</DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.75, pt: 0.5 }}>
+              {createError && (
+                <Alert severity="error" data-testid="misc-create-error">
+                  {createError}
+                </Alert>
+              )}
+              <TextField
+                label="Setting ID"
+                value={createName}
+                onChange={(event) => {
+                  setCreateName(event.target.value);
+                  setCreateError(null);
+                }}
+                placeholder="e.g. tmux"
+                fullWidth
+                autoFocus
+                margin="dense"
+                inputProps={{ "data-testid": "misc-create-name" }}
+              />
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={createTemplate}
+                onChange={(_, value) => {
+                  if (value) applyCreateTemplate(value);
+                }}
+                aria-label="Initial value template"
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)" },
+                  gap: 0.75,
+                  "& .MuiToggleButtonGroup-grouped": {
+                    border: `1px solid ${alpha(miscColor, 0.22)} !important`,
+                    borderRadius: `${tokens.radii.control}px !important`,
+                    mx: "0 !important",
+                    color: "text.secondary",
+                    textTransform: "none",
+                    fontFamily: MONO_FONT,
+                    fontSize: "0.75rem",
+                    "&.Mui-selected": {
+                      color: miscColor,
+                      bgcolor: alpha(miscColor, isDark ? 0.16 : 0.1),
+                    },
+                    "&.Mui-selected:hover": {
+                      bgcolor: alpha(miscColor, isDark ? 0.2 : 0.14),
+                    },
+                  },
+                }}
+              >
+                <ToggleButton value="object" data-testid="misc-template-object">Object</ToggleButton>
+                <ToggleButton value="array" data-testid="misc-template-array">Array</ToggleButton>
+                <ToggleButton value="boolean" data-testid="misc-template-boolean">Boolean</ToggleButton>
+                <ToggleButton value="string" data-testid="misc-template-string">String</ToggleButton>
+              </ToggleButtonGroup>
+              <TextField
+                label="JSON Value"
+                value={createValue}
+                onChange={(event) => {
+                  setCreateValue(event.target.value);
+                  setCreateError(null);
+                }}
+                fullWidth
+                multiline
+                minRows={5}
+                error={createError === "Initial value must be valid JSON."}
+                inputProps={{ "data-testid": "misc-create-value-json" }}
+                sx={{
+                  "& .MuiInputBase-input": {
+                    fontFamily: MONO_FONT,
+                    fontSize: "0.8rem",
+                  },
+                }}
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseCreateDialog}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={!createName.trim()}
+              data-testid="misc-create-submit"
+              startIcon={<Plus size={16} />}
+              sx={{
+                bgcolor: miscColor,
+                "&:hover": {
+                  bgcolor: alpha(miscColor, 0.86),
+                },
+              }}
+            >
+              Create
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+
+      <ConfirmDialog
+        open={pendingDeleteName !== null}
+        title="Delete Misc Setting"
+        description={`Are you sure you want to delete misc setting "${pendingDeleteName}"?`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        severity="error"
+      />
     </Box>
   );
 }
 
-export const MiscEditor = memo(MiscEditorComponent);
+export const MiscEditor = memo(forwardRef(MiscEditorComponent));

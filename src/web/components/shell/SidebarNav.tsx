@@ -20,6 +20,7 @@ interface SidebarNavProps {
   onNavToSection?: (section: "agents" | "categories" | "misc") => void;
   onOpenAgentDialog: () => void;
   onOpenCategoryDialog: () => void;
+  onOpenMiscDialog?: () => void;
   variant?: "desktop" | "mobile";
   onCloseMobile?: () => void;
 }
@@ -36,6 +37,7 @@ export function SidebarNav({
   onNavToSection,
   onOpenAgentDialog,
   onOpenCategoryDialog,
+  onOpenMiscDialog,
   variant = "desktop",
   onCloseMobile,
 }: SidebarNavProps) {
@@ -98,6 +100,7 @@ export function SidebarNav({
     onClick,
     isActive,
     testId,
+    quickCreateTestId,
   }: {
     icon: ReactNode;
     label: string;
@@ -107,6 +110,7 @@ export function SidebarNav({
     onClick?: () => void;
     isActive?: boolean;
     testId?: string;
+    quickCreateTestId?: string;
   }) => (
     <Box
       data-testid={testId}
@@ -179,6 +183,7 @@ export function SidebarNav({
             onQuickCreate();
           }}
           aria-label={getQuickCreateLabel(label)}
+          data-testid={quickCreateTestId}
           sx={{
             color,
             p: 0.5,
@@ -406,6 +411,8 @@ export function SidebarNav({
             label="Misc"
             count={miscSectionNames.length}
             color={sectionColors.misc}
+            onQuickCreate={onOpenMiscDialog}
+            quickCreateTestId={variant === "desktop" ? "misc-add-open" : undefined}
             onClick={() => handleSectionClick("misc")}
             isActive={activeId === "section-misc"}
             testId={variant === "desktop" ? "nav-link-misc" : undefined}

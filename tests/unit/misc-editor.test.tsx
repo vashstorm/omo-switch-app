@@ -1,8 +1,8 @@
 import React from "react";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, test, afterEach, vi } from "vitest";
-import { MiscEditor } from "../../src/web/components/misc/MiscEditor";
+import { MiscEditor, type MiscEditorHandle } from "../../src/web/components/misc/MiscEditor";
 
 describe("MiscEditor", () => {
   afterEach(() => {
@@ -239,5 +239,118 @@ describe("MiscEditor", () => {
     fireEvent.blur(input);
 
     expect(onChange).toHaveBeenCalledWith({ tools: ["one", "two"] });
+  });
+
+  test("validates and returns uncommitted JSON drafts before save", () => {
+    const ref = React.createRef<MiscEditorHandle>();
+
+    render(
+      <MiscEditor
+        ref={ref}
+        miscData={{ tmux: { enabled: true } }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("misc-tmux-value-json"), {
+      target: { value: '{ "enabled": false, "prefix_key": "Ctrl+A" }' },
+    });
+
+    let result: ReturnType<MiscEditorHandle["validateDrafts"]> | undefined;
+    act(() => {
+      result = ref.current?.validateDrafts();
+    });
+
+    expect(result).toEqual({
+      valid: true,
+      nextMiscData: { tmux: { enabled: false, prefix_key: "Ctrl+A" } },
+    });
+  });
+
+  test("rejects invalid JSON drafts before save", () => {
+    const ref = React.createRef<MiscEditorHandle>();
+
+    render(
+      <MiscEditor
+        ref={ref}
+        miscData={{ tmux: { enabled: true } }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("misc-tmux-value-json"), {
+      target: { value: '{ "enabled": ' },
+    });
+
+    let result: ReturnType<MiscEditorHandle["validateDrafts"]> | undefined;
+    act(() => {
+      result = ref.current?.validateDrafts();
+    });
+
+    expect(result?.valid).toBe(false);
+    expect(screen.getByText("Invalid JSON")).toBeInTheDocument();
+  });
+
+  test("creates misc sections with an initial JSON value", () => {
+    const onChange = vi.fn();
+    const ref = React.createRef<MiscEditorHandle>();
+
+    render(<MiscEditor ref={ref} miscData={{ tmux: { enabled: true } }} onChange={onChange} />);
+
+    act(() => {
+      ref.current?.openCreateDialog();
+    });
+    fireEvent.change(screen.getByTestId("misc-create-name"), {
+      target: { value: "custom_setting" },
+    });
+    fireEvent.change(screen.getByTestId("misc-create-value-json"), {
+      target: { value: '{ "mode": "fast" }' },
+    });
+    fireEvent.click(screen.getByTestId("misc-create-submit"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      tmux: { enabled: true },
+      custom_setting: { mode: "fast" },
+    });
+  });
+
+  test("shows create validation errors for invalid JSON", () => {
+    const onChange = vi.fn();
+    const ref = React.createRef<MiscEditorHandle>();
+
+    render(<MiscEditor ref={ref} miscData={{}} onChange={onChange} />);
+
+    act(() => {
+      ref.current?.openCreateDialog();
+    });
+    fireEvent.change(screen.getByTestId("misc-create-name"), {
+      target: { value: "broken_setting" },
+    });
+    fireEvent.change(screen.getByTestId("misc-create-value-json"), {
+      target: { value: "{ broken" },
+    });
+    fireEvent.click(screen.getByTestId("misc-create-submit"));
+
+    expect(screen.getByTestId("misc-create-error")).toHaveTextContent("Initial value must be valid JSON.");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  test("deletes misc sections with a null tombstone", () => {
+    const onChange = vi.fn();
+
+    render(
+      <MiscEditor
+        miscData={{ tmux: { enabled: true }, git_master: { commit_footer: true } }}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("delete-misc-tmux"));
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      tmux: null,
+      git_master: { commit_footer: true },
+    });
   });
 });

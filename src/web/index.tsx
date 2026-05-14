@@ -10,7 +10,7 @@ import { ProfileSelector } from "./components/ProfileSelector";
 import { SyncReplaceToggle } from "./components/sync-replace/SyncReplaceToggle";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { ZoomControls } from "./components/ZoomControls";
-import { MiscEditor } from "./components/misc/MiscEditor";
+import { MiscEditor, type MiscEditorHandle } from "./components/misc/MiscEditor";
 import { useProviders } from "./hooks/useProviders";
 import { AgentEditor } from "./components/agents/AgentEditor";
 import { CategoryEditor } from "./components/categories/CategoryEditor";
@@ -123,6 +123,7 @@ export function App() {
     nextModel: string;
   } | null>(null);
   const copyInputRef = useRef<HTMLInputElement>(null);
+  const miscEditorRef = useRef<MiscEditorHandle>(null);
   const [respectsMotion, setRespectsMotion] = useState(true);
   const [errorLogExpanded, setErrorLogExpanded] = useState(false);
   const {
@@ -441,13 +442,33 @@ export function App() {
   const handleSave = async () => {
     if (!selectedProfileId || !currentProfile || !editableConfig) return;
 
+    const miscValidation = miscEditorRef.current?.validateDrafts();
+    if (miscValidation && !miscValidation.valid) {
+      addToast("error", "Misc Configuration contains invalid JSON. Fix it before saving.");
+      return;
+    }
+
+    const configToSave = miscValidation?.valid
+      ? {
+          ...editableConfig,
+          misc: {
+            ...(editableConfig.misc as Record<string, unknown> | undefined),
+            ...miscValidation.nextMiscData,
+          },
+        }
+      : editableConfig;
+
     setError(null);
     setConflictError(null);
     setSuccessMessage(null);
     setIsSaving(true);
     setSaveSuccess(false);
 
-    const result = await saveProfile(selectedProfileId, editableConfig, currentProfile.mtime);
+    if (configToSave !== editableConfig) {
+      setEditableConfig(configToSave);
+    }
+
+    const result = await saveProfile(selectedProfileId, configToSave, currentProfile.mtime);
 
     setIsSaving(false);
 
@@ -546,10 +567,20 @@ export function App() {
       if (!current) return current;
       return {
         ...current,
-        misc: newMiscConfig,
+        misc: {
+          ...(current.misc as Record<string, unknown> | undefined),
+          ...newMiscConfig,
+        },
       };
     });
     setIsDirty(true);
+  }, []);
+
+  const handleOpenMiscDialog = useCallback(() => {
+    setMiscCollapsed(false);
+    setTimeout(() => {
+      miscEditorRef.current?.openCreateDialog();
+    }, 0);
   }, []);
 
   const applyModelChange = useCallback((
@@ -907,6 +938,7 @@ export function App() {
         onToggleMisc={() => setMiscCollapsed(c => !c)}
         onCreateAgent={handleCreateAgent}
         onCreateCategory={handleCreateCategory}
+        onOpenMiscDialog={handleOpenMiscDialog}
         providerPanelProps={selectedProfileId ? {
           providerCatalog,
           disabledProviders,
@@ -960,8 +992,10 @@ export function App() {
         miscSection={
           editableConfig ? (
             <MiscEditor
+              ref={miscEditorRef}
               miscData={sharedMiscData}
               onChange={handleMiscChange}
+              onDirty={markDirty}
               globalCollapseKey={globalCollapseKey}
               globalExpandKey={globalExpandKey}
               expandTargetId={expandMiscTarget}
