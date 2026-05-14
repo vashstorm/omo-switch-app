@@ -336,6 +336,9 @@ export function ProviderActivationMenu({
                     "&:hover": enabledCount < activationProviders.length
                       ? { bgcolor: alpha(providersColor, isDark ? 0.18 : 0.12), borderColor: alpha(providersColor, 0.25) }
                       : {},
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                   }}
                   onClick={() => {
                     if (enabledCount < activationProviders.length) {
@@ -343,7 +346,7 @@ export function ProviderActivationMenu({
                     }
                   }}
                 >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.625, mb: 0.25 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.625 }}>
                     <Power size={13} color={providersColor} />
                     <Typography
                       sx={{
@@ -351,6 +354,7 @@ export function ProviderActivationMenu({
                         fontFamily: MONO_FONT,
                         fontSize: "0.6875rem",
                         fontWeight: 600,
+                        whiteSpace: "nowrap",
                       }}
                     >
                       Enable All
@@ -380,6 +384,9 @@ export function ProviderActivationMenu({
                     "&:hover": disabledCount > 0
                       ? { bgcolor: alpha(tokens.colors.neutral.textPrimary, isDark ? 0.06 : 0.04), borderColor: alpha(tokens.colors.neutral.textPrimary, 0.12) }
                       : {},
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                   }}
                   onClick={() => {
                     if (disabledCount > 0) {
@@ -387,7 +394,7 @@ export function ProviderActivationMenu({
                     }
                   }}
                 >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.625, mb: 0.25 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.625 }}>
                     <PowerOff size={13} color={alpha(muiTheme.palette.text.secondary as string, 0.7)} />
                     <Typography
                       sx={{
@@ -395,6 +402,7 @@ export function ProviderActivationMenu({
                         fontFamily: MONO_FONT,
                         fontSize: "0.6875rem",
                         fontWeight: 600,
+                        whiteSpace: "nowrap",
                       }}
                     >
                       Disable All
