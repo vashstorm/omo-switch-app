@@ -399,6 +399,46 @@ describe("config writer", () => {
     expect(data.agents.planner.ultrawork.variant).toBe("low");
   });
 
+  it("removes nested null values introduced by payload", async () => {
+    const initialContent = `{
+  "agents": {
+    "planner": {
+      "model": "gpt-4"
+    }
+  }
+}`;
+    await fs.writeFile(configPath, initialContent, "utf-8");
+    const initialStat = await fs.stat(configPath);
+
+    const payload = {
+      agents: {
+        planner: {
+          model: "gpt-4",
+          ultrawork: {
+            model: null,
+            variant: "high",
+          },
+        },
+      },
+      categories: {},
+      misc: {},
+    } as unknown as EditableConfig;
+
+    const result = await writeProfileConfig(
+      resolvedProfile,
+      payload,
+      initialStat.mtimeMs,
+    );
+
+    expect(result.success).toBe(true);
+
+    const saved = await fs.readFile(configPath, "utf-8");
+    const data = parse(saved) as Record<string, any>;
+
+    expect(data.agents.planner.ultrawork.model).toBeUndefined();
+    expect(data.agents.planner.ultrawork.variant).toBe("high");
+  });
+
   it("omits ultrawork when payload marks it disabled", async () => {
     const initialContent = `{
   "agents": {

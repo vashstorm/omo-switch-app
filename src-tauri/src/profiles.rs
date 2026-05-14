@@ -43,6 +43,8 @@ const CATEGORY_MANAGED_FIELDS: &[&str] = &[
     "fallback_models",
 ];
 
+const ULTRAWORK_MANAGED_FIELDS: &[&str] = &["model", "variant", "temperature", "prompt_append"];
+
 /// Check if a managed field value should be omitted (blank/default semantics).
 ///
 /// Mirrors TypeScript `shouldOmitField()` from managed-fields.ts.
@@ -74,6 +76,7 @@ fn should_omit_managed_field(key: &str, value: &Value) -> bool {
 /// Filter managed fields from agent/category objects in editable config payload.
 ///
 /// Removes managed fields when values are blank/default. Unmanaged keys are preserved.
+/// Also recursively filters nested ultrawork fields.
 pub fn filter_managed_fields(payload: &mut Value) {
     if let Some(agents) = payload.get_mut("agents").and_then(|v| v.as_object_mut()) {
         for (_agent_id, agent_obj) in agents.iter_mut() {
@@ -89,6 +92,27 @@ pub fn filter_managed_fields(payload: &mut Value) {
                     .collect();
                 for key in keys_to_remove {
                     agent.remove(&key);
+                }
+
+                // Recursively filter nested ultrawork fields
+                if let Some(ultrawork) = agent.get_mut("ultrawork") {
+                    if let Some(uw_obj) = ultrawork.as_object_mut() {
+                        let uw_keys_to_remove: Vec<String> = uw_obj
+                            .iter()
+                            .filter(|(key, value)| {
+                                ULTRAWORK_MANAGED_FIELDS.contains(&key.as_str())
+                                    && should_omit_managed_field(key, value)
+                            })
+                            .map(|(key, _)| key.clone())
+                            .collect();
+                        for key in uw_keys_to_remove {
+                            uw_obj.remove(&key);
+                        }
+                        // Remove empty ultrawork object
+                        if uw_obj.is_empty() {
+                            agent.remove("ultrawork");
+                        }
+                    }
                 }
             }
         }
@@ -2478,6 +2502,50 @@ mod tests {
             payload["categories"]["default"].as_object().unwrap().len(),
             0
         );
+    }
+
+    #[test]
+    fn test_filter_removes_nested_ultrawork_nulls() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "model": "gpt-4",
+                    "ultrawork": {
+                        "model": null,
+                        "variant": "high",
+                        "prompt_append": ""
+                    }
+                }
+            },
+            "categories": {}
+        });
+        filter_managed_fields(&mut payload);
+        let agent = payload["agents"]["build"].as_object().unwrap();
+        assert!(agent.contains_key("model"));
+        assert!(agent.contains_key("ultrawork"));
+        let ultrawork = agent["ultrawork"].as_object().unwrap();
+        assert!(!ultrawork.contains_key("model"));
+        assert!(ultrawork.contains_key("variant"));
+        assert!(!ultrawork.contains_key("prompt_append"));
+    }
+
+    #[test]
+    fn test_filter_removes_empty_ultrawork_object() {
+        let mut payload = json!({
+            "agents": {
+                "build": {
+                    "model": "gpt-4",
+                    "ultrawork": {
+                        "model": null,
+                        "prompt_append": ""
+                    }
+                }
+            },
+            "categories": {}
+        });
+        filter_managed_fields(&mut payload);
+        let agent = payload["agents"]["build"].as_object().unwrap();
+        assert!(!agent.contains_key("ultrawork"));
     }
 
     #[test]

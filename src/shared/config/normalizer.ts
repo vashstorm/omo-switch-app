@@ -4,6 +4,7 @@ import {
   CATEGORY_MANAGED_FIELDS,
   MISC_MANAGED_FIELDS,
   ULTRAWORK_MANAGED_FIELDS,
+  shouldOmitField,
 } from "../managed-fields";
 import type { ConfigFieldError, RawConfig } from "./types";
 import type { AgentConfig, CategoryConfig, MiscConfig, UltraworkConfig } from "../types";
@@ -175,7 +176,10 @@ function normalizeUltraworkConfig(
     if (key === "$schema") continue;
 
     if (MANAGED_ULTRAWORK_FIELDS.has(key)) {
-      (config as Record<string, unknown>)[key] = value;
+      const definition = ULTRAWORK_MANAGED_FIELDS[key];
+      if (definition && !shouldOmitField(value, definition, key)) {
+        (config as Record<string, unknown>)[key] = value;
+      }
     }
   }
 

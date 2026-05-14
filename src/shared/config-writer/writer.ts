@@ -260,6 +260,10 @@ export async function writeProfileConfig(
     nextContent = applyModify(nextContent, sectionPath, sectionValue);
   }
 
+  // Final clean: remove any null/empty values that may have been introduced by the payload
+  const finalData = asRecord(parse(nextContent));
+  nextContent = cleanEmptyValues(nextContent, finalData);
+
   try {
     await fs.writeFile(resolvedProfile.ohMyOpencodePath, nextContent, "utf-8");
     const newFileStat = await fs.stat(resolvedProfile.ohMyOpencodePath);
