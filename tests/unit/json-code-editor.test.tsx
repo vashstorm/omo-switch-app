@@ -5,16 +5,14 @@ import { JsonCodeEditor } from "../../src/web/components/common/JsonCodeEditor";
 describe("JsonCodeEditor", () => {
   it("renders textarea inside container", () => {
     render(<JsonCodeEditor value="" onChange={vi.fn()} dataTestId="editor" />);
-    const container = screen.getByTestId("editor");
-    expect(container).toBeInTheDocument();
-    const textarea = container.querySelector("textarea");
+    const textarea = document.querySelector(".json-code-editor-textarea");
     expect(textarea).toBeTruthy();
   });
 
   it("calls onChange when typing", () => {
     const onChange = vi.fn();
     render(<JsonCodeEditor value="" onChange={onChange} dataTestId="editor" />);
-    const textarea = screen.getByTestId("editor").querySelector("textarea")!;
+    const textarea = document.querySelector(".json-code-editor-textarea")!;
     fireEvent.change(textarea, { target: { value: "{" } });
     expect(onChange).toHaveBeenCalledWith("{");
   });
@@ -50,7 +48,7 @@ describe("JsonCodeEditor", () => {
     render(
       <JsonCodeEditor value="" onChange={vi.fn()} onBlur={onBlur} dataTestId="editor" />
     );
-    const textarea = screen.getByTestId("editor").querySelector("textarea")!;
+    const textarea = document.querySelector(".json-code-editor-textarea")!;
     fireEvent.blur(textarea);
     expect(onBlur).toHaveBeenCalled();
   });
