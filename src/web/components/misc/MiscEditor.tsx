@@ -21,6 +21,7 @@ import { radii, lightTokens, darkTokens } from "../../theme/designTokens";
 import { MONO_FONT } from "../../theme/typography";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { JsonCodeBlock } from "../common/JsonCodeBlock";
+import { JsonCodeEditor } from "../common/JsonCodeEditor";
 
 interface MiscEditorProps {
   miscData?: Record<string, unknown>;
@@ -540,18 +541,16 @@ function MiscEditorComponent(
 
     const draftValue = getDraftValue(draftKey, value);
     return (
-      <TextField
+      <JsonCodeEditor
         value={draftValue}
-        onChange={(event) => setDraftValue(draftKey, event.target.value)}
+        onChange={(val) => setDraftValue(draftKey, val)}
         onBlur={() => commitJsonDraft(draftKey, draftValue, commit)}
-        size="small"
-        fullWidth
-        multiline
+        isDark={isDark}
         minRows={3}
         error={!!draftErrors[draftKey]}
         helperText={draftErrors[draftKey] ?? " "}
-        inputProps={{ "data-testid": `${testId}-json` }}
-        sx={textFieldSx}
+        dataTestId={`${testId}-json`}
+        focusColor={miscColor}
       />
     );
   };
@@ -1063,24 +1062,17 @@ function MiscEditorComponent(
                 <ToggleButton value="boolean" data-testid="misc-template-boolean">Boolean</ToggleButton>
                 <ToggleButton value="string" data-testid="misc-template-string">String</ToggleButton>
               </ToggleButtonGroup>
-              <TextField
-                label="JSON Value"
+              <JsonCodeEditor
                 value={createValue}
-                onChange={(event) => {
-                  setCreateValue(event.target.value);
+                onChange={(val) => {
+                  setCreateValue(val);
                   setCreateError(null);
                 }}
-                fullWidth
-                multiline
+                isDark={isDark}
                 minRows={5}
                 error={createError === "Initial value must be valid JSON."}
-                inputProps={{ "data-testid": "misc-create-value-json" }}
-                sx={{
-                  "& .MuiInputBase-input": {
-                    fontFamily: MONO_FONT,
-                    fontSize: "0.8rem",
-                  },
-                }}
+                dataTestId="misc-create-value-json"
+                focusColor={miscColor}
               />
             </Box>
           </DialogContent>

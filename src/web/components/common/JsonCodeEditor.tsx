@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import Editor from "react-simple-code-editor";
 import { Box, Typography } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
@@ -33,6 +33,16 @@ export function JsonCodeEditor({
 }: JsonCodeEditorProps) {
   const theme = useTheme();
   const activeFocusColor = focusColor ?? theme.palette.primary.main;
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (dataTestId && containerRef.current) {
+      const textarea = containerRef.current.querySelector("textarea");
+      if (textarea) {
+        textarea.setAttribute("data-testid", dataTestId);
+      }
+    }
+  }, [dataTestId]);
 
   const highlight = useCallback(
     (code: string) => {
@@ -49,7 +59,7 @@ export function JsonCodeEditor({
   );
 
   return (
-    <Box sx={{ width: "100%" }} data-testid={dataTestId}>
+    <Box sx={{ width: "100%" }} ref={containerRef}>
       <Box
         sx={{
           border: `1px solid ${
