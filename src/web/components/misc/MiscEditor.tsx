@@ -20,6 +20,7 @@ import { TRANSITIONS } from "../../theme/motionTokens";
 import { radii, lightTokens, darkTokens } from "../../theme/designTokens";
 import { MONO_FONT } from "../../theme/typography";
 import { ConfirmDialog } from "../common/ConfirmDialog";
+import { JsonCodeBlock } from "../common/JsonCodeBlock";
 
 interface MiscEditorProps {
   miscData?: Record<string, unknown>;
@@ -668,20 +669,11 @@ function MiscEditorComponent(
               bgcolor: alpha(theme.palette.background.default, 0.5),
             }}
           >
-            <Typography
-              component="pre"
-              sx={{
-                margin: 0,
-                fontFamily: MONO_FONT,
-                fontSize: "0.75rem",
-                color: "text.secondary",
-                lineHeight: 1.6,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-              }}
-            >
-              {JSON.stringify(value, null, 2)}
-            </Typography>
+            <JsonCodeBlock
+              data={value}
+              isDark={isDark}
+              fontSize="0.75rem"
+            />
           </Paper>
         )}
       </Box>
@@ -781,20 +773,11 @@ function MiscEditorComponent(
                 bgcolor: alpha(theme.palette.background.default, 0.5),
               }}
             >
-              <Typography
-                component="pre"
-                sx={{
-                  margin: 0,
-                  fontFamily: MONO_FONT,
-                  fontSize: "0.75rem",
-                  color: "text.secondary",
-                  lineHeight: 1.6,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                }}
-              >
-                {JSON.stringify(value, null, 2)}
-              </Typography>
+              <JsonCodeBlock
+                data={value}
+                isDark={isDark}
+                fontSize="0.75rem"
+              />
             </Paper>
           )}
         </Box>
