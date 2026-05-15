@@ -60,7 +60,7 @@ export function createTypographyConfig(mode: 'light' | 'dark') {
 
   return {
     fontFamily: BODY_FONT,
-    fontSize: 14,
+    fontSize: 15,
     h1: { ...headings.h1, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
     h2: { ...headings.h2, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
     h3: { ...headings.h3, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },

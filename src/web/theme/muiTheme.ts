@@ -64,7 +64,7 @@ function buildComponentOverrides(
         },
         body: {
           fontFamily: BODY_FONT,
-          fontSize: 14,
+          fontSize: 15,
           backgroundColor: c.neutral.background,
           color: c.neutral.textPrimary,
           lineHeight: 1.5,
