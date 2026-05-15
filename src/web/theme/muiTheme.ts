@@ -62,9 +62,13 @@ function buildComponentOverrides(
         "html, body, #root": {
           height: "100%",
         },
+        html: {
+          // Increase root font size so rem-based typography scales up consistently.
+          fontSize: 17,
+        },
         body: {
           fontFamily: BODY_FONT,
-          fontSize: 15,
+          fontSize: 17,
           backgroundColor: c.neutral.background,
           color: c.neutral.textPrimary,
           lineHeight: 1.5,
@@ -237,7 +241,7 @@ function buildComponentOverrides(
     MuiMenuItem: {
       styleOverrides: {
         root: {
-          fontSize: "0.875rem",
+          fontSize: "0.9375rem",
           borderRadius: `${r.control - 2}px`,
           margin: "2px 8px",
           transition: transitionControl,
@@ -276,14 +280,14 @@ function buildComponentOverrides(
       styleOverrides: {
         root: {
           borderRadius: r.chip,
-          fontSize: "0.75rem",
+          fontSize: "0.8125rem",
           fontWeight: 500,
           letterSpacing: 0,
           transition: transitionControl,
         },
         sizeSmall: {
           height: 24,
-          fontSize: "0.75rem",
+          fontSize: "0.8125rem",
         },
       },
     },
@@ -297,7 +301,7 @@ function buildComponentOverrides(
     MuiFormLabel: {
       styleOverrides: {
         root: {
-          fontSize: "0.75rem",
+          fontSize: "0.8125rem",
           fontWeight: 500,
           textTransform: "uppercase",
           letterSpacing: "0.08em",

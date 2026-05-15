@@ -18,18 +18,18 @@ type FontSizeVariant = {
 };
 
 const headingSizes: Record<string, FontSizeVariant> = {
-  h1: { fontSize: '2rem', lineHeight: 1.08, letterSpacing: '0' },
-  h2: { fontSize: '1.5rem', lineHeight: 1.12, letterSpacing: '0' },
-  h3: { fontSize: '1.25rem', lineHeight: 1.18, letterSpacing: '0' },
-  h4: { fontSize: '1.125rem', lineHeight: 1.24, letterSpacing: '0' },
-  h5: { fontSize: '1rem', lineHeight: 1.3, letterSpacing: '0' },
-  h6: { fontSize: '0.875rem', lineHeight: 1.35, letterSpacing: '0' },
+  h1: { fontSize: '2.125rem', lineHeight: 1.08, letterSpacing: '0' },
+  h2: { fontSize: '1.625rem', lineHeight: 1.12, letterSpacing: '0' },
+  h3: { fontSize: '1.375rem', lineHeight: 1.18, letterSpacing: '0' },
+  h4: { fontSize: '1.1875rem', lineHeight: 1.24, letterSpacing: '0' },
+  h5: { fontSize: '1.0625rem', lineHeight: 1.3, letterSpacing: '0' },
+  h6: { fontSize: '0.9375rem', lineHeight: 1.35, letterSpacing: '0' },
 };
 
 const bodySizes: Record<string, FontSizeVariant> = {
-  body1: { fontSize: '1rem', lineHeight: 1.55, letterSpacing: '0' },
-  body2: { fontSize: '0.875rem', lineHeight: 1.55, letterSpacing: '0' },
-  caption: { fontSize: '0.8125rem', lineHeight: 1.4, letterSpacing: '0' },
+  body1: { fontSize: '1.0625rem', lineHeight: 1.55, letterSpacing: '0' },
+  body2: { fontSize: '0.9375rem', lineHeight: 1.55, letterSpacing: '0' },
+  caption: { fontSize: '0.875rem', lineHeight: 1.4, letterSpacing: '0' },
   overline: { fontSize: '0.75rem', lineHeight: 1.4, letterSpacing: '0.09em', textTransform: 'uppercase' },
 };
 
@@ -60,7 +60,7 @@ export function createTypographyConfig(mode: 'light' | 'dark') {
 
   return {
     fontFamily: BODY_FONT,
-    fontSize: 15,
+    fontSize: 16,
     h1: { ...headings.h1, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
     h2: { ...headings.h2, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
     h3: { ...headings.h3, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
@@ -69,14 +69,14 @@ export function createTypographyConfig(mode: 'light' | 'dark') {
     h6: { ...headings.h6, color: textPrimary, fontWeight: FONT_WEIGHTS.regular },
     subtitle1: {
       fontFamily: BODY_FONT,
-      fontSize: '0.9375rem',
+      fontSize: '1rem',
       lineHeight: 1.6,
       fontWeight: FONT_WEIGHTS.medium,
       color: textSecondary,
     },
     subtitle2: {
       fontFamily: BODY_FONT,
-      fontSize: '0.8125rem',
+      fontSize: '0.875rem',
       lineHeight: 1.5,
       fontWeight: FONT_WEIGHTS.medium,
       color: textSecondary,
@@ -92,7 +92,7 @@ export function createTypographyConfig(mode: 'light' | 'dark') {
     },
     code: {
       fontFamily: MONO_FONT,
-      fontSize: '0.8125rem',
+      fontSize: '0.875rem',
       lineHeight: 1.5,
       fontWeight: FONT_WEIGHTS.regular,
     },
