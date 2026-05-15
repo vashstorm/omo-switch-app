@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
-import Editor from "react-simple-code-editor";
+import EditorModule from "react-simple-code-editor";
 import { Box, Typography } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import { tokenizeJson, getRenderedTokens, jsonColorThemes } from "../../utils/jsonHighlighter";
 import { MONO_FONT } from "../../theme/typography";
 import { radii } from "../../theme/designTokens";
+
+const Editor = ("default" in EditorModule ? EditorModule.default : EditorModule) as typeof EditorModule;
 
 interface JsonCodeEditorProps {
   value: string;
