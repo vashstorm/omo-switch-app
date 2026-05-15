@@ -446,14 +446,16 @@ function MiscEditorComponent(
     },
   };
 
-  const fieldRowSx = (rowIndex = 0, isComplexValue = false) => ({
+  const fieldRowSx = (rowIndex = 0, isComplexValue = false, fullWidth = false) => ({
     px: { xs: 1.5, sm: 2 },
     py: isComplexValue ? 1.5 : 1.15,
     borderTop: rowIndex === 0 ? "none" : `1px solid ${alpha(theme.palette.divider, 0.55)}`,
     display: "grid",
-    gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "minmax(130px, 0.34fr) minmax(0, 1fr)" },
+    gridTemplateColumns: fullWidth
+      ? "minmax(0, 1fr)"
+      : { xs: "minmax(0, 1fr)", sm: "minmax(130px, 0.34fr) minmax(0, 1fr)" },
     alignItems: isComplexValue ? "flex-start" : "center",
-    gap: { xs: 0.75, sm: 2 },
+    gap: fullWidth ? 0 : { xs: 0.75, sm: 2 },
     bgcolor: rowIndex % 2 === 0 ? "transparent" : alpha(miscColor, isDark ? 0.035 : 0.025),
   });
 
@@ -557,10 +559,10 @@ function MiscEditorComponent(
     const isComplexValue = Array.isArray(value) || (typeof value === "object" && value !== null);
     return (
       <Box
-        sx={fieldRowSx(0, isComplexValue)}
+        sx={fieldRowSx(0, isComplexValue, isComplexValue)}
         data-testid={`misc-primitive-${sectionName}`}
       >
-        <Typography sx={fieldLabelSx(isComplexValue)}>value:</Typography>
+        {!isComplexValue && <Typography sx={fieldLabelSx(isComplexValue)}>value:</Typography>}
         {renderEditableControl(
           `section:${sectionName}`,
           `misc-${sectionName}-value`,
@@ -581,10 +583,10 @@ function MiscEditorComponent(
 
     return (
       <Box
-        sx={fieldRowSx(0, isComplexValue)}
+        sx={fieldRowSx(0, isComplexValue, isComplexValue)}
         data-testid={`misc-primitive-${sectionName}`}
       >
-        <Typography sx={fieldLabelSx(isComplexValue)}>value:</Typography>
+        {!isComplexValue && <Typography sx={fieldLabelSx(isComplexValue)}>value:</Typography>}
         {isBool ? (
           renderBooleanValue(value as boolean)
         ) : (
