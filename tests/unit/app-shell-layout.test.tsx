@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, test, vi, afterEach } from "vitest";
 import { AppShell } from "../../src/web/components/AppShell";
@@ -119,6 +119,59 @@ describe("AppShell left nav layout", () => {
     expect(screen.getAllByLabelText("build (openai/gpt-4.1)").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("deep").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("tmux").length).toBeGreaterThan(0);
+  });
+
+  test("nav sub-items use compact vertical spacing", () => {
+    render(
+      <AppShell
+        profileSelector={<div />}
+        loading={false}
+        error={null}
+        isDirty={false}
+        onSave={() => {}}
+        onReset={() => {}}
+        agentIds={["sisyphus"]}
+        agentModelMap={{ sisyphus: "volcengine-cp/glm-5.1" }}
+      />
+    );
+
+    const item = screen.getByTestId("nav-link-agent-sisyphus");
+
+    expect(item).toHaveStyle({
+      minHeight: "26px",
+      paddingTop: "2px",
+      paddingBottom: "2px",
+    });
+    expect(within(item).getByText("sisyphus")).toHaveStyle({
+      lineHeight: "1.15",
+    });
+    expect(within(item).getByText("volcengine-cp/glm-5.1")).toHaveStyle({
+      letterSpacing: "0",
+      lineHeight: "1.15",
+    });
+  });
+
+  test("nav section labels use title case", () => {
+    render(
+      <AppShell
+        profileSelector={<div />}
+        loading={false}
+        error={null}
+        isDirty={false}
+        onSave={() => {}}
+        onReset={() => {}}
+      />
+    );
+
+    expect(within(screen.getByTestId("nav-link-agents")).getByText("Agents")).toHaveStyle({
+      textTransform: "none",
+    });
+    expect(within(screen.getByTestId("nav-link-categories")).getByText("Categories")).toHaveStyle({
+      textTransform: "none",
+    });
+    expect(within(screen.getByTestId("nav-link-misc")).getByText("Misc")).toHaveStyle({
+      textTransform: "none",
+    });
   });
 
   test("profile-selector and save/reset controls remain visible", () => {

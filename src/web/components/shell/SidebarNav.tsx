@@ -153,8 +153,8 @@ export function SidebarNav({
           sx={{
             fontSize: "0.6875rem",
             fontWeight: 500,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
+            textTransform: "none",
+            letterSpacing: 0,
             color: "text.secondary",
           }}
         >
@@ -228,8 +228,10 @@ export function SidebarNav({
         sx={{
           justifyContent: "flex-start",
           px: 1.5,
-          py: 0.7,
+          py: "2px",
           fontSize: "0.8125rem",
+          lineHeight: 1.15,
+          minHeight: 26,
           textTransform: "none",
           color: isActive ? sectionColor : "text.primary",
           bgcolor: isActive ? alpha(sectionColor, isDark ? 0.15 : 0.09) : "transparent",
@@ -253,6 +255,7 @@ export function SidebarNav({
             sx={{
               fontWeight: isActive ? 500 : 400,
               fontSize: "0.8125rem",
+              lineHeight: 1.15,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -266,6 +269,7 @@ export function SidebarNav({
               component="span"
               sx={{
                 fontSize: "0.6875rem",
+                lineHeight: 1.15,
                 color: "text.secondary",
                 opacity: 0.7,
                 overflow: "hidden",
