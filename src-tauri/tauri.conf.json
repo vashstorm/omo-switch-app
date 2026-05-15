@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.omo-switch",
   "build": {
-    "beforeDevCommand": "bun run build:web:assets",
+    "beforeDevCommand": "bun run build:web:assets && bun run dev:server -p 3000",
     "devUrl": "http://localhost:3000",
     "beforeBuildCommand": "bun run build:web:assets",
     "frontendDist": "../dist/web"
