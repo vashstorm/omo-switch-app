@@ -102,8 +102,8 @@ impl AppPaths {
 
     /// Bootstrap default config file if it doesn't exist.
     ///
-    /// Writes a minimal valid JSONC config with empty config_path and log_path,
-    /// causing the app to use its own profiles_dir and log_dir by default.
+    /// Writes a minimal valid JSONC config that points to opencode's config
+    /// directory and omo-switch's cache log directory by default.
     /// Does NOT overwrite existing config files.
     pub fn bootstrap_config_if_missing(&self) -> Result<(), AppError> {
         if self.config_file.exists() {
@@ -113,15 +113,10 @@ impl AppPaths {
         self.ensure_dirs()?;
 
         let default_config = r#"{
-   "config_path": [""],
-   "log_path": "",
-   "providers": {},
-   "ui_preferences": {
-     "sync_replace_enabled": true
-   },
-   "default_profile": null,
-   "disabled_providers": {}
-}"#;
+  "config_path": ["~/.config/opencode/"],
+  "log_path": "~/.cache/omo-switch/logs"
+}
+"#;
 
         std::fs::write(&self.config_file, default_config)
             .map_err(|e| AppError::WriteError(format!("Failed to write config.jsonc: {}", e)))?;
@@ -257,6 +252,31 @@ mod tests {
     }
 
     #[test]
+    fn test_bootstrap_does_not_overwrite_existing_config() {
+        let temp = TempDir::new().expect("Failed to create temp dir");
+        let base = temp.path();
+
+        let paths = AppPaths::from_dirs(
+            base.join("config/config.jsonc"),
+            base.join("data/profiles"),
+            base.join("logs"),
+        );
+        let custom_config =
+            r#"{ "config_path": ["/custom/opencode"], "log_path": "/custom/logs" }"#;
+
+        fs::create_dir_all(paths.config_file.parent().unwrap())
+            .expect("Failed to create config dir");
+        fs::write(&paths.config_file, custom_config).expect("Failed to write custom config");
+
+        paths
+            .bootstrap_config_if_missing()
+            .expect("bootstrap failed");
+
+        let content = fs::read_to_string(&paths.config_file).expect("Failed to read config");
+        assert_eq!(content, custom_config);
+    }
+
+    #[test]
     fn test_resolve_profiles_root_none() {
         let paths = AppPaths::from_dirs(
             PathBuf::from("/app/config/config.jsonc"),
@@ -364,12 +384,12 @@ mod tests {
         );
 
         assert!(
-            content.contains("\"config_path\": [\"\"]"),
-            "config_path should be empty array"
+            content.contains("\"config_path\": [\"~/.config/opencode/\"]"),
+            "config_path should point to opencode config directory"
         );
         assert!(
-            content.contains("\"log_path\": \"\""),
-            "log_path should be empty"
+            content.contains("\"log_path\": \"~/.cache/omo-switch/logs\""),
+            "log_path should point to omo-switch cache log directory"
         );
     }
 
@@ -399,10 +419,18 @@ mod tests {
             serde_json::from_str(&content).expect("Config should be valid JSON");
 
         assert!(parsed.is_object());
-        assert!(parsed.get("config_path").is_some());
-        assert!(parsed.get("log_path").is_some());
-        assert!(parsed.get("providers").is_some());
-        assert!(parsed.get("ui_preferences").is_some());
+        assert_eq!(
+            parsed
+                .get("config_path")
+                .and_then(|v| v.as_array())
+                .and_then(|arr| arr.first())
+                .and_then(|v| v.as_str()),
+            Some("~/.config/opencode/")
+        );
+        assert_eq!(
+            parsed.get("log_path").and_then(|v| v.as_str()),
+            Some("~/.cache/omo-switch/logs")
+        );
     }
 
     #[test]

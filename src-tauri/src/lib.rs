@@ -17,6 +17,11 @@ pub fn run() {
                 .with_state_flags(StateFlags::SIZE)
                 .build(),
         )
+        .setup(|app| {
+            let paths = paths::AppPaths::from_tauri(app.handle())?;
+            paths.bootstrap_config_if_missing()?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             profiles::list_profiles,
             profiles::get_profile,

@@ -13,7 +13,7 @@ function printHelp(): void {
 Usage: omo-switch [options]
 
 Options:
-  -c, --config <path>    Specify config file path (default: ~/Library/Application Support/com.omo-switch.app/config.jsonc)
+  -c, --config <path>    Specify config file path (default: ~/Library/Application Support/com.omo-switch/config.jsonc)
   -p, --port <number>    Specify port number (default: auto-assign)
   -r, --profiles <path>  Specify profiles root directory
   -h, --help            Show this help message

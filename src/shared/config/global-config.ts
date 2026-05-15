@@ -60,7 +60,7 @@ export function resolveGlobalConfigPath(configPath?: string): string {
     getHomeDir(),
     "Library",
     "Application Support",
-    "com.omo-switch.app",
+    "com.omo-switch",
     "config.jsonc",
   );
 }

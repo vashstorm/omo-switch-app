@@ -34,8 +34,8 @@ function repoConfigPath(): string {
 
 describe("resolveGlobalConfigPath", () => {
   it("expands home-relative explicit config path", () => {
-    expect(resolveGlobalConfigPath("~/Library/Application Support/com.omo-switch.app/config.jsonc")).toBe(
-      path.join(homeDir(), "Library/Application Support/com.omo-switch.app/config.jsonc"),
+    expect(resolveGlobalConfigPath("~/Library/Application Support/com.omo-switch/config.jsonc")).toBe(
+      path.join(homeDir(), "Library/Application Support/com.omo-switch/config.jsonc"),
     );
   });
 });

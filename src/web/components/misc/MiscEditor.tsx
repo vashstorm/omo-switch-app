@@ -125,45 +125,6 @@ function MiscEditorComponent(
   const tokens = isDark ? darkTokens : lightTokens;
   const miscColor = (theme as any).sectionColors?.misc ?? tokens.colors.section.miscPrimary;
 
-  const getValueKind = (value: unknown): string => {
-    if (value === null) return "null";
-    if (Array.isArray(value)) return "array";
-    return typeof value;
-  };
-
-  const getValueMetric = (value: unknown): string => {
-    if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? "" : "s"}`;
-    if (value && typeof value === "object") {
-      const count = Object.keys(value as Record<string, unknown>).length;
-      return `${count} field${count === 1 ? "" : "s"}`;
-    }
-    if (typeof value === "string") return `${value.length} char${value.length === 1 ? "" : "s"}`;
-    if (typeof value === "boolean") return value ? "true" : "false";
-    if (typeof value === "number") return Number.isInteger(value) ? "integer" : "decimal";
-    return "value";
-  };
-
-  const getValuePreview = (value: unknown): string => {
-    if (value === null) return "null";
-    if (typeof value === "boolean") return value ? "true" : "false";
-    if (typeof value === "number") return String(value);
-    if (typeof value === "string") return value || "\"\"";
-    if (Array.isArray(value)) {
-      return value.length === 0 ? "[]" : value.slice(0, 3).map((item) => {
-        if (item === null) return "null";
-        if (typeof item === "object") return Array.isArray(item) ? "array" : "object";
-        return String(item);
-      }).join(", ");
-    }
-
-    if (value && typeof value === "object") {
-      const keys = Object.keys(value as Record<string, unknown>);
-      return keys.length === 0 ? "{}" : keys.slice(0, 4).join(", ");
-    }
-
-    return "";
-  };
-
   const isPrimitiveValue = (value: unknown): boolean => {
     return (
       value === null ||
@@ -507,29 +468,6 @@ function MiscEditorComponent(
     overflowWrap: "anywhere",
   });
 
-  const renderValueMeta = (value: unknown): React.ReactNode => (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", minWidth: 0 }}>
-      <Chip
-        label={getValueKind(value)}
-        size="small"
-        variant="outlined"
-        sx={{
-          height: 22,
-          borderRadius: 999,
-          borderColor: alpha(miscColor, 0.22),
-          bgcolor: alpha(miscColor, isDark ? 0.08 : 0.045),
-          color: "text.secondary",
-          fontFamily: MONO_FONT,
-          fontSize: "0.6875rem",
-          "& .MuiChip-label": { px: 0.9 },
-        }}
-      />
-      <Typography sx={{ color: "text.secondary", fontSize: "0.75rem", lineHeight: 1.3 }}>
-        {getValueMetric(value)}
-      </Typography>
-    </Box>
-  );
-
   const renderBooleanValue = (value: boolean): React.ReactNode => (
     <Typography
       sx={{
@@ -622,10 +560,7 @@ function MiscEditorComponent(
         sx={fieldRowSx(0, isComplexValue)}
         data-testid={`misc-primitive-${sectionName}`}
       >
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.45, minWidth: 0 }}>
-          <Typography sx={fieldLabelSx(isComplexValue)}>value:</Typography>
-          {renderValueMeta(value)}
-        </Box>
+        <Typography sx={fieldLabelSx(isComplexValue)}>value:</Typography>
         {renderEditableControl(
           `section:${sectionName}`,
           `misc-${sectionName}-value`,
@@ -649,10 +584,7 @@ function MiscEditorComponent(
         sx={fieldRowSx(0, isComplexValue)}
         data-testid={`misc-primitive-${sectionName}`}
       >
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.45, minWidth: 0 }}>
-          <Typography sx={fieldLabelSx(isComplexValue)}>value:</Typography>
-          {renderValueMeta(value)}
-        </Box>
+        <Typography sx={fieldLabelSx(isComplexValue)}>value:</Typography>
         {isBool ? (
           renderBooleanValue(value as boolean)
         ) : (
@@ -939,9 +871,6 @@ function MiscEditorComponent(
     >
       {sectionNames.map((sectionName) => {
         const collapsed = !!collapsedSections[sectionName];
-        const sectionValue = getSectionValue(sectionName);
-        const preview = getValuePreview(sectionValue);
-
         return (
           <Card
             key={sectionName}
@@ -1042,24 +971,6 @@ function MiscEditorComponent(
                 >
                   {sectionName}
                 </Typography>
-                {renderValueMeta(sectionValue)}
-                {preview && (
-                  <Typography
-                    sx={{
-                      display: { xs: "none", md: "block" },
-                      color: "text.secondary",
-                      fontFamily: MONO_FONT,
-                      fontSize: "0.75rem",
-                      minWidth: 0,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      maxWidth: 300,
-                    }}
-                  >
-                    {preview}
-                  </Typography>
-                )}
               </ButtonBase>
               {editable && (
                 <Tooltip title="Delete setting">
