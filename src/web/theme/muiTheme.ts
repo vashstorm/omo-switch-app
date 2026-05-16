@@ -64,11 +64,11 @@ function buildComponentOverrides(
         },
         html: {
           // Increase root font size so rem-based typography scales up consistently.
-          fontSize: 17,
+          fontSize: 18,
         },
         body: {
           fontFamily: BODY_FONT,
-          fontSize: 17,
+          fontSize: 18,
           backgroundColor: c.neutral.background,
           color: c.neutral.textPrimary,
           lineHeight: 1.5,
