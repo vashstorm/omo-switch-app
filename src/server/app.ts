@@ -16,8 +16,9 @@ import {
   type GlobalConfig,
 } from "../shared/config/global-config";
 import { loggers } from "../shared/logger";
+import pkg from "../../package.json";
 
-const APP_VERSION = "0.1.0";
+const APP_VERSION = pkg.version;
 
 export interface CreateAppOptions {
   profilesRoot?: string;

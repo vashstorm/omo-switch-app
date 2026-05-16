@@ -36,7 +36,8 @@ for (const bundleDir of possibleBundleDirs) {
     mkdirSync(outDmg, { recursive: true });
     for (const entry of readdirSync(dmgDir)) {
       const src = resolve(dmgDir, entry);
-      const dest = resolve(outDmg, entry);
+      const destName = entry.replace(/^([^_]+)_[\d.]+_(.+)\.dmg$/i, "$1_$2.dmg");
+      const dest = resolve(outDmg, destName);
       if (existsSync(dest)) {
         rmSync(dest, { recursive: true, force: true });
       }
