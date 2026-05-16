@@ -33,19 +33,6 @@ make verify
 - [Bun](https://bun.sh) >= 1.0
 - [Rust](https://rustup.rs) (for Tauri builds)
 
-## Project Structure
-
-```
-src/
-├── server/      # Backend API (Hono)
-├── web/         # Frontend UI (React + TailwindCSS + MUI)
-├── shared/      # Shared types and config logic
-└── components/ui/  # UI component library
-src-tauri/       # Tauri desktop shell (Rust)
-config/          # Global config and profile data
-tests/           # Unit, integration, and E2E tests
-```
-
 ## How It Works
 
 Each opencode profile is split into two files:

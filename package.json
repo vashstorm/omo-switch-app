@@ -1,6 +1,6 @@
 {
   "name": "omo-switch",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,8 +14,9 @@
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
     "install:playwright": "bunx playwright install chromium",
-    "tauri:dev": "bunx tauri dev",
-    "tauri:build": "bunx tauri build",
+    "sync-version": "bun run scripts/sync-version.ts",
+    "tauri:dev": "bun run sync-version && bunx tauri dev",
+    "tauri:build": "bun run sync-version && bunx tauri build",
     "tauri:smoke": "zsh scripts/tauri-smoke.sh"
   },
   "dependencies": {
